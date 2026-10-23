@@ -13,14 +13,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/privometry/privometry-oss/detectorpacks"
-	"github.com/privometry/privometry-oss/internal/adapters/registry"
-	"github.com/privometry/privometry-oss/internal/buildinfo"
-	"github.com/privometry/privometry-oss/internal/content"
-	"github.com/privometry/privometry-oss/internal/contract"
-	"github.com/privometry/privometry-oss/internal/scanner/discover"
-	"github.com/privometry/privometry-oss/internal/scanner/parsers"
-	"github.com/privometry/privometry-oss/internal/scanner/posture"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/detectorpacks"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/adapters/registry"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/buildinfo"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/content"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/contract"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/scanner/discover"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/scanner/parsers"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/scanner/posture"
 )
 
 // ResultSchema identifies the JSON report. It is v0 until the scan report has

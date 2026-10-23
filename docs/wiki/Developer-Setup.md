@@ -18,7 +18,7 @@ Recommended:
 ## Clone and verify
 
 ```sh
-git clone https://github.com/privometry/privometry-oss.git
+git clone https://gitlab.com/cn-solutions/privometry/privometry-oss.git
 cd privometry-oss
 go version
 make test

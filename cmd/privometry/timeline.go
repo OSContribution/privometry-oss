@@ -12,9 +12,9 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/privometry/privometry-oss/internal/ipc"
-	"github.com/privometry/privometry-oss/internal/platform"
-	"github.com/privometry/privometry-oss/internal/timeline"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/ipc"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/platform"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/timeline"
 )
 
 const timelineUsage = `Usage: privometry timeline [flags]

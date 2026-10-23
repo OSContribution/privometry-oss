@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/privometry/privometry-oss/internal/contract"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/contract"
 )
 
 func TestNewID(t *testing.T) {

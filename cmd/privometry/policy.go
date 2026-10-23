@@ -8,12 +8,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/privometry/privometry-oss/internal/platform"
-	"github.com/privometry/privometry-oss/internal/policy"
-	"github.com/privometry/privometry-oss/internal/policy/engine"
-	"github.com/privometry/privometry-oss/internal/policy/intent"
-	"github.com/privometry/privometry-oss/internal/policy/merge"
-	"github.com/privometry/privometry-oss/internal/policy/packtest"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/platform"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/policy"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/policy/engine"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/policy/intent"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/policy/merge"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/policy/packtest"
 )
 
 const policyUsage = `Usage: privometry policy test [flags] [PATH...]

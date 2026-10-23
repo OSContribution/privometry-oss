@@ -28,7 +28,7 @@ import (
 	"unicode"
 )
 
-const module = "github.com/privometry/privometry-oss"
+const module = "gitlab.com/cn-solutions/privometry/privometry-oss"
 
 type source struct {
 	schema string // path under specs/

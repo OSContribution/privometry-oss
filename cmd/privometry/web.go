@@ -15,10 +15,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/privometry/privometry-oss/internal/platform"
-	"github.com/privometry/privometry-oss/internal/timeline"
-	"github.com/privometry/privometry-oss/internal/webui"
-	timelineweb "github.com/privometry/privometry-oss/ui/timeline-web"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/platform"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/timeline"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/webui"
+	timelineweb "gitlab.com/cn-solutions/privometry/privometry-oss/ui/timeline-web"
 )
 
 // serveTimeline runs the browser timeline on 127.0.0.1 until interrupted.

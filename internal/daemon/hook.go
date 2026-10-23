@@ -10,16 +10,16 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/privometry/privometry-oss/internal/adapters/registry"
-	"github.com/privometry/privometry-oss/internal/contract"
-	"github.com/privometry/privometry-oss/internal/events"
-	"github.com/privometry/privometry-oss/internal/ipc"
-	"github.com/privometry/privometry-oss/internal/platform"
-	"github.com/privometry/privometry-oss/internal/policy"
-	"github.com/privometry/privometry-oss/internal/policy/engine"
-	"github.com/privometry/privometry-oss/internal/policy/intent"
-	"github.com/privometry/privometry-oss/internal/redact"
-	"github.com/privometry/privometry-oss/internal/scanner/parsers"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/adapters/registry"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/contract"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/events"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/ipc"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/platform"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/policy"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/policy/engine"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/policy/intent"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/redact"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/scanner/parsers"
 )
 
 // call is one hook invocation, with payload fields read through the

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/privometry/privometry-oss/internal/policy/compiler"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/policy/compiler"
 )
 
 // TestTypesCoverSchema keeps the hand-written policy types in step with

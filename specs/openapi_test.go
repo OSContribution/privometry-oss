@@ -10,7 +10,7 @@ import (
 
 	"go.yaml.in/yaml/v3"
 
-	"github.com/privometry/privometry-oss/specs"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/specs"
 )
 
 // TestEdgeAPI checks openapi.yaml against the edge API contract. It is not a

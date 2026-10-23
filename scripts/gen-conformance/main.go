@@ -21,10 +21,10 @@ import (
 	"sort"
 	"time"
 
-	"github.com/privometry/privometry-oss/internal/cloud/bundles"
-	"github.com/privometry/privometry-oss/internal/contract"
-	"github.com/privometry/privometry-oss/internal/signing"
-	"github.com/privometry/privometry-oss/specs"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/cloud/bundles"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/contract"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/signing"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/specs"
 )
 
 const (

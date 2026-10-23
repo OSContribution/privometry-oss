@@ -15,9 +15,9 @@ builds:
     flags: [-trimpath]
     ldflags:
       - -s -w
-      - -X github.com/privometry/privometry-oss/internal/buildinfo.Version={{.Version}}
-      - -X github.com/privometry/privometry-oss/internal/buildinfo.Commit={{.ShortCommit}}
-      - -X github.com/privometry/privometry-oss/internal/buildinfo.Date={{.Date}}
+      - -X gitlab.com/cn-solutions/privometry/privometry-oss/internal/buildinfo.Version={{.Version}}
+      - -X gitlab.com/cn-solutions/privometry/privometry-oss/internal/buildinfo.Commit={{.ShortCommit}}
+      - -X gitlab.com/cn-solutions/privometry/privometry-oss/internal/buildinfo.Date={{.Date}}
     goos: [darwin, linux]   # windows arrives in P2
     goarch: [amd64, arm64]
   - <<: *bin
@@ -42,4 +42,4 @@ checksum:
   name_template: checksums.txt
 
 changelog:
-  use: github
+  use: gitlab

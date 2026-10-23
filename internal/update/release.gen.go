@@ -3,7 +3,7 @@
 package update
 
 import (
-	"github.com/privometry/privometry-oss/internal/contract"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/contract"
 )
 
 // Schema identifiers for the documents in this file.

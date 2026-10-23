@@ -3,7 +3,7 @@
 package content
 
 import (
-	"github.com/privometry/privometry-oss/internal/policy/rulepack"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/policy/rulepack"
 )
 
 // Schema identifiers for the documents in this file.

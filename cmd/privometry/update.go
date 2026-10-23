@@ -13,9 +13,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/privometry/privometry-oss/internal/buildinfo"
-	"github.com/privometry/privometry-oss/internal/daemon/service"
-	"github.com/privometry/privometry-oss/internal/update"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/buildinfo"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/daemon/service"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/update"
 )
 
 const updateUsage = `Usage: privometry update [flags]

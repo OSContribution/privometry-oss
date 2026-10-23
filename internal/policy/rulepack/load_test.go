@@ -4,8 +4,8 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/privometry/privometry-oss/internal/policy/rulepack"
-	"github.com/privometry/privometry-oss/rulepacks"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/policy/rulepack"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/rulepacks"
 )
 
 func TestLoadShippedPacks(t *testing.T) {

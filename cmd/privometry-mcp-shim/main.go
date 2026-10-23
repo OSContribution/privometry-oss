@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/privometry/privometry-oss/internal/buildinfo"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/buildinfo"
 )
 
 func main() {
