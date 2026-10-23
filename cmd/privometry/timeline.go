@@ -36,7 +36,7 @@ func timelineCmd(args []string, stdout, stderr io.Writer) int {
 	fs.Usage = func() { fmt.Fprint(stderr, timelineUsage); fs.PrintDefaults() }
 	agent := fs.String("agent", "", "only this agent, for example claude_code")
 	verdict := fs.String("verdict", "", "only allow, ask or deny")
-	typ := fs.String("type", "", "only action, config_change, integrity, fail_mode, inventory or content_finding")
+	typ := fs.String("type", "", "only action, prompt, config_change, integrity, fail_mode, inventory or content_finding")
 	search := fs.String("search", "", "only events whose command or path contains this text")
 	since := fs.String("since", "", "only events newer than this, for example 30m, 24h or 7d")
 	limit := fs.Int("limit", 50, "how many events to show")
@@ -81,7 +81,7 @@ func timelineCmd(args []string, stdout, stderr io.Writer) int {
 	case q.Agent != "" || q.Verdict != "" || q.Type != "" || q.Search != "" || !q.Since.IsZero():
 		fmt.Fprintln(stdout, "No matching events.")
 	default:
-		fmt.Fprintln(stdout, "No events yet. Once privometry guard install is done, agent actions appear here.")
+		fmt.Fprintln(stdout, "No events yet. Once privometry guard install is done, agent queries and actions appear here.")
 	}
 	printRows(stdout, reverse(rows), color, env.Home, true)
 	switch source {

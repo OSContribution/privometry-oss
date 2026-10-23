@@ -28,6 +28,7 @@
         "integrity",
         "fail_mode",
         "inventory",
+        "prompt",
         "content_finding"
       ]
     },
@@ -78,6 +79,9 @@
     "inventory": {
       "$ref": "#/$defs/inventory"
     },
+    "prompt": {
+      "$ref": "#/$defs/prompt"
+    },
     "content_finding": {
       "$ref": "#/$defs/content_finding"
     },
@@ -89,6 +93,21 @@
     }
   },
   "allOf": [
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "prompt"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "agent",
+          "prompt"
+        ]
+      }
+    },
     {
       "if": {
         "properties": {
@@ -805,6 +824,31 @@
           ]
         }
       }
+    },
+    "prompt": {
+      "type": "object",
+      "description": "Metadata for a user query submitted to an agent. Raw prompt text is never stored in the event.",
+      "required": [
+        "fingerprint",
+        "characters"
+      ],
+      "properties": {
+        "prompt_id": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "fingerprint": {
+          "type": "string",
+          "pattern": "^hmac-sha256:[0-9a-f]{64}$",
+          "description": "A device-keyed fingerprint used to correlate identical prompts without retaining their text."
+        },
+        "characters": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of Unicode code points in the submitted query."
+        }
+      },
+      "additionalProperties": false
     },
     "secret_type": {
       "type": "string",

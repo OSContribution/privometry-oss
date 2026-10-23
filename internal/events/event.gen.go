@@ -42,6 +42,10 @@ type Event struct {
 	FailMode  *FailMode  `json:"fail_mode,omitempty"`
 	Inventory *Inventory `json:"inventory,omitempty"`
 
+	// Metadata for a user query submitted to an agent. Raw prompt text is never
+	// stored in the event.
+	Prompt *Prompt `json:"prompt,omitempty"`
+
 	// A content detector fired. Never carries the matched value or the text around
 	// it; the local timeline keeps a masked excerpt on the device only.
 	ContentFinding *ContentFinding `json:"content_finding,omitempty"`
@@ -64,6 +68,7 @@ const (
 	EventTypeIntegrity      EventType = "integrity"
 	EventTypeFailMode       EventType = "fail_mode"
 	EventTypeInventory      EventType = "inventory"
+	EventTypePrompt         EventType = "prompt"
 	EventTypeContentFinding EventType = "content_finding"
 )
 
@@ -462,6 +467,21 @@ type InventoryItemPosture struct {
 	CheckID  string        `json:"check_id"`
 	Severity contract.Risk `json:"severity"`
 	Message  string        `json:"message,omitempty"`
+}
+
+// Prompt is generated from event-schema/v1/event.schema.json#/$defs/prompt.
+//
+// Metadata for a user query submitted to an agent. Raw prompt text is never
+// stored in the event.
+type Prompt struct {
+	PromptID string `json:"prompt_id,omitempty"`
+
+	// A device-keyed fingerprint used to correlate identical prompts without
+	// retaining their text.
+	Fingerprint string `json:"fingerprint"`
+
+	// Number of Unicode code points in the submitted query.
+	Characters int64 `json:"characters"`
 }
 
 // ContentFinding is generated from event-schema/v1/event.schema.json#/$defs/content_finding.

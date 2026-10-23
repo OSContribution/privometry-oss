@@ -6,7 +6,7 @@
 
 (function () {
   var AGENTS = { claude_code: 'Claude Code', cursor: 'Cursor', codex_cli: 'Codex' };
-  var LABELS = { allow: 'Allowed', auto: 'Auto-approved', ask: 'Asked', deny: 'Blocked', config: 'Config changed', alert: 'Alert', failmode: 'Fail mode', inventory: 'Inventory', finding: 'Finding' };
+  var LABELS = { allow: 'Allowed', auto: 'Auto-approved', ask: 'Asked', deny: 'Blocked', prompt: 'Query detected', config: 'Config changed', alert: 'Alert', failmode: 'Fail mode', inventory: 'Inventory', finding: 'Finding' };
   var KINDS = { shell_exec: 'Shell command', file_read: 'File read', file_write: 'File write', file_delete: 'File delete', mcp_call: 'MCP call', network_fetch: 'Network fetch', web_search: 'Web search', subagent_spawn: 'Subagent' };
   var VIEWS = ['timeline', 'sessions', 'scan', 'policy', 'device'];
   var POLL_MS = 2000, SUMMARY_MS = 10000;
@@ -72,7 +72,7 @@
   /* ---------- formatting ---------- */
   function agentName(a) { return AGENTS[a] || a || ''; }
   function fmt(n) { return Number(n || 0).toLocaleString(); }
-  function plural(n, w) { return fmt(n) + ' ' + w + (n === 1 ? '' : 's'); }
+  function plural(n, w, many) { return fmt(n) + ' ' + (n === 1 ? w : (many || w + 's')); }
   function clock(iso) {
     return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
   }
@@ -176,6 +176,7 @@
       case 'ask': return 'Privometry asked you before this ran' + (r.why ? ': ' + r.why : '') + '.';
       case 'would': return 'A rule in monitor mode matched, so the action ran. It would have been ' + (label(r) === 'Would block' ? 'blocked' : 'asked') + '.';
       case 'config': return 'An agent’s config or memory file changed: ' + r.why + '.';
+      case 'prompt': return 'Codex received a user query. Privometry stored only a keyed fingerprint and character count, not the query text.';
       case 'finding': return 'A content detector found ' + r.why + '. The excerpt masks credentials and shows hidden characters; it stays on this machine.';
       case 'alert': return r.why === 'hook_removed' ? 'Privometry’s hook was removed from this agent’s config, so its actions are no longer checked. Run privometry guard install to put it back.' : 'Privometry’s hook in this agent’s config was changed: ' + r.why + '.';
       case 'failmode': case 'deny':
@@ -338,7 +339,7 @@
     function fill() {
       panel.textContent = '';
       var list = state.sessions || [];
-      if (!list.length) { panel.appendChild(h('div', { class: 'empty' }, [h('strong', { text: 'No sessions yet' }), 'Sessions appear once a hooked agent runs a tool.'])); return; }
+      if (!list.length) { panel.appendChild(h('div', { class: 'empty' }, [h('strong', { text: 'No sessions yet' }), 'Sessions appear once a hooked agent submits a query or runs a tool.'])); return; }
       list.forEach(function (s) {
         var active = !s.ended && Date.now() - new Date(s.last_event_at).getTime() < 15 * 60 * 1000;
         var flags = [];
@@ -348,7 +349,7 @@
         panel.appendChild(h('div', { class: 'row' }, [
           h('div', { class: 'grow' }, [
             h('div', { class: 't' }, [agentName(s.agent) + ' ', h('span', { class: 'muted', text: 'in' }), ' ', h('span', { class: 'mono', text: s.repo || 'a folder outside git' })]),
-            h('small', { class: 'num', text: 'Started ' + ago(s.started_at) + ', last action ' + ago(s.last_event_at) + '. ' + plural(s.actions, 'action') + ', ' + fmt(s.asked) + ' asked, ' + fmt(s.blocked) + ' blocked.' }),
+            h('small', { class: 'num', text: 'Started ' + ago(s.started_at) + ', last activity ' + ago(s.last_event_at) + '. ' + plural(s.prompts || 0, 'query', 'queries') + ', ' + plural(s.actions, 'action') + ', ' + fmt(s.asked) + ' asked, ' + fmt(s.blocked) + ' blocked.' }),
             flags.length ? h('div', { class: 'flags' }, flags) : null
           ]),
           active ? pill('Active', 'ok', true) : pill(s.ended ? 'Ended' : 'Idle')

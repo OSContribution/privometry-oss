@@ -763,6 +763,8 @@
               "tool_name",
               "tool_input",
               "tool_response",
+              "prompt_id",
+              "prompt",
               "cwd",
               "command",
               "file_path",

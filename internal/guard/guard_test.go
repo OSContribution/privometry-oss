@@ -282,6 +282,11 @@ func TestCodex(t *testing.T) {
 	if pre["matcher"] != ".*" || entry["type"] != "command" || entry["command"] != "/usr/local/bin/privometry-hook codex_cli PreToolUse" {
 		t.Errorf("PreToolUse: %v %v", pre, entry)
 	}
+	prompt := m["hooks"].(map[string]any)["UserPromptSubmit"].([]any)[0].(map[string]any)
+	promptEntry := prompt["hooks"].([]any)[0].(map[string]any)
+	if promptEntry["command"] != "/usr/local/bin/privometry-hook codex_cli UserPromptSubmit" {
+		t.Errorf("UserPromptSubmit: %v", promptEntry)
+	}
 	if c.FailClosed || !strings.Contains(c.TrustInstructions, "/hooks") {
 		t.Errorf("codex has no fail-closed option and needs trust: %+v", c)
 	}

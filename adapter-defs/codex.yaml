@@ -95,6 +95,16 @@ hooks:
     tiers: [user, project]
     instructions: Open Codex, run /hooks and trust the Privometry hook once; the desktop app then runs it too.
   events:
+    - name: UserPromptSubmit
+      role: prompt_submit
+      verdicts: []
+      request:
+        session_id: /session_id
+        prompt_id: /prompt_id
+        prompt: /prompt
+        cwd: /cwd
+      responses:
+        none: { exit_code: 0, stdout: null }
     - name: PreToolUse
       role: pre_tool
       matcher: ".*"

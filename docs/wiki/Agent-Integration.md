@@ -7,7 +7,7 @@ Agent integrations are data-driven. An adapter definition describes discovery, c
 | Agent | Adapter ID | Version range | Registration | Important behavior |
 | --- | --- | --- | --- | --- |
 | Claude Code | `claude_code` | `>=2.1.295 <3.0.0` | `claude_settings` | Supports allow, ask, deny and fail-closed `onFailure` |
-| Codex | `codex_cli` | `>=0.14.0 <1.0.0` | `codex_hooks` | Requires hook trust; ask falls back to deny; crashes/timeouts fail open in the host |
+| Codex | `codex_cli` | `>=0.14.0 <1.0.0` | `codex_hooks` | Captures query metadata through `UserPromptSubmit`; requires hook trust; ask falls back to deny; crashes/timeouts fail open in the host |
 | Cursor | `cursor` | `>=1.7.0 <3.0.0` | `cursor_hooks` | Dedicated shell/MCP events support ask; other pre-events may map ask to deny |
 
 Adapter source files are under `adapter-defs/`. Generated Go types are under `internal/adapters/registry/`.
@@ -20,6 +20,8 @@ Adapter source files are under `adapter-defs/`. Generated Go types are under `in
 4. The daemon validates the adapter and event, reads values through JSON pointers, maps the native tool to a normalized action, and evaluates policy.
 5. The adapter renders allow, ask, deny, or observation output in the host's required shape.
 6. Post-tool and lifecycle events update session state, content findings, and the timeline.
+
+Codex query capture uses the observe-only `UserPromptSubmit` event. The daemon records the prompt ID, Unicode character count, and a device-keyed HMAC fingerprint so identical queries can be correlated without persisting query text. Existing installations must rerun `privometry guard install --agent codex_cli` and trust the updated hook set with Codex `/hooks`.
 
 ## Adapter definition sections
 

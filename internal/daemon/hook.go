@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/privometry/privometry-oss/internal/adapters/registry"
 	"github.com/privometry/privometry-oss/internal/contract"
@@ -97,10 +98,39 @@ func (d *Daemon) hook(h ipc.HookRequest) (ipc.Response, error) {
 			err = d.store.EndSession(s.ID, d.cfg.Now())
 		}
 		return none(ev), err
+	case registry.HookEventRolePromptSubmit:
+		return none(ev), d.promptSubmit(c)
 	case registry.HookEventRoleConfigChange:
 		return none(ev), d.configChange(c)
 	}
 	return none(ev), nil
+}
+
+// promptSubmit records that a user query entered an agent session without
+// persisting the raw prompt. The keyed fingerprint permits local correlation
+// while preventing offline guessing if an event database is copied.
+func (d *Daemon) promptSubmit(c call) error {
+	sess, err := d.session(c)
+	if err != nil {
+		return err
+	}
+	prompt := c.str("prompt")
+	chars := int64(utf8.RuneCountInString(prompt))
+	ev := &events.Event{
+		Schema: events.EventSchema, EventID: contract.NewID("evt"), Type: events.EventTypePrompt,
+		OccurredAt: contract.At(d.cfg.Now()), Device: d.device, User: events.User{LocalUser: localUser()},
+		Agent: &events.Agent{Product: c.product, Version: c.str("agent_version"), SessionID: sess.ID,
+			NativeSessionID: sess.Native, Pattern: events.AgentPatternInteractive},
+		Prompt: &events.Prompt{PromptID: c.str("prompt_id"), Fingerprint: d.content.Hash(prompt), Characters: chars},
+		Redaction: map[string]contract.PrivacyLevel{
+			"prompt.fingerprint": contract.PrivacyLevelHashed,
+			"user.local_user":    contract.PrivacyLevelClear,
+		},
+	}
+	if remote := remoteOf(sess); remote != "" {
+		ev.Repo = &events.Repo{Remote: remote}
+	}
+	return d.store.Append(ev, fmt.Sprintf("Query submitted (%d characters)", chars))
 }
 
 // caller detects another agent running this agent's hooks, from the payload
