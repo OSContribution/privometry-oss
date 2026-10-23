@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="referrer" content="no-referrer">
+<title>Privometry local guard</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='1' y='1' width='22' height='22' rx='6' fill='%2314161B'/%3E%3Ccircle cx='8' cy='12' r='2.6' fill='none' stroke='%23fff' stroke-width='1.6'/%3E%3Cpath d='M12.6 12 L15 9.6 L17.4 12 L15 14.4 Z' fill='%23E89B00'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+<script src="app.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div id="app" class="l-app">
+  <div class="shell" id="shell">
+    <aside class="sidebar" id="sidebar" aria-label="Local guard navigation">
+      <div class="sb-brand">
+        <svg width="28" height="28" viewBox="0 0 24 24" aria-hidden="true"><rect x="1" y="1" width="22" height="22" rx="6" fill="var(--ink)"/><circle cx="8" cy="12" r="2.6" fill="none" stroke="var(--surface)" stroke-width="1.6"/><path d="M12.6 12 L15 9.6 L17.4 12 L15 14.4 Z" fill="var(--ask-glyph)"/></svg>
+        <div><b>Privometry</b><small id="host">on this machine</small></div>
+      </div>
+      <div class="sb-status" id="status" role="status"></div>
+      <nav class="sb-nav" id="nav">
+        <button type="button" data-view="timeline"><svg class="ic" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span>Timeline</span></button>
+        <button type="button" data-view="sessions"><svg class="ic" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg><span>Sessions</span></button>
+        <button type="button" data-view="scan"><svg class="ic" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><span>Scan</span><span class="count" id="scan-count" hidden></span></button>
+        <button type="button" data-view="policy"><svg class="ic" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg><span>Policy</span></button>
+        <button type="button" data-view="device"><svg class="ic" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg><span>Device</span></button>
+      </nav>
+      <div class="sb-foot">
+        <div class="sb-row"><span>Activity</span><button type="button" class="live" id="live" aria-pressed="true"><span class="dot"></span><span>Live</span></button></div>
+        <div class="sb-row"><span>Theme</span>
+          <div class="seg theme-seg" role="group" aria-label="Theme">
+            <button type="button" data-theme="light" aria-pressed="false"><svg class="ic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>Light</button>
+            <button type="button" data-theme="dark" aria-pressed="false"><svg class="ic" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>Dark</button>
+          </div>
+        </div>
+        <div class="user"><span class="avatar" id="avatar">?</span><div><span id="user">You</span><small>On this machine</small></div></div>
+      </div>
+    </aside>
+    <div class="scrim-m" id="scrim"></div>
+    <div class="main" id="scroller">
+      <div class="mbar">
+        <button type="button" class="x" id="menu" aria-label="Open menu"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+        <span class="logo"><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><rect x="1" y="1" width="22" height="22" rx="6" fill="var(--ink)"/><circle cx="8" cy="12" r="2.6" fill="none" stroke="var(--surface)" stroke-width="1.6"/><path d="M12.6 12 L15 9.6 L17.4 12 L15 14.4 Z" fill="var(--ask-glyph)"/></svg>Privometry</span>
+        <span id="mstatus" class="mstatus"></span>
+      </div>
+      <main class="page" id="main" tabindex="-1"></main>
+    </div>
+  </div>
+</div>
+<div id="layer"></div>
+</body>
+</html>

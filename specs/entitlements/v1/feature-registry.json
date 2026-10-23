@@ -1,0 +1,196 @@
+{
+  "schema": "privometry.feature_registry/v1",
+  "features": {
+    "local_guard": {
+      "description": "Local hook enforcement with built-in, repo and user policy.",
+      "editions": [
+        "free",
+        "trial",
+        "team",
+        "enterprise"
+      ],
+      "since": "1.0.0",
+      "local": true
+    },
+    "scanner": {
+      "description": "privometry scan: agents, MCP servers, hooks and posture checks.",
+      "editions": [
+        "free",
+        "trial",
+        "team",
+        "enterprise"
+      ],
+      "since": "1.0.0",
+      "local": true
+    },
+    "local_timeline": {
+      "description": "Local SQLite timeline and viewers.",
+      "editions": [
+        "free",
+        "trial",
+        "team",
+        "enterprise"
+      ],
+      "since": "1.0.0",
+      "local": true
+    },
+    "community_feed": {
+      "description": "Community risk feed.",
+      "editions": [
+        "free",
+        "trial",
+        "team",
+        "enterprise"
+      ],
+      "since": "1.0.0",
+      "local": true
+    },
+    "cloud_sync": {
+      "description": "Device enrollment and redacted event upload.",
+      "editions": [
+        "trial",
+        "team",
+        "enterprise"
+      ],
+      "since": "1.0.0"
+    },
+    "shared_policies": {
+      "description": "Organization policy bundles.",
+      "editions": [
+        "trial",
+        "team",
+        "enterprise"
+      ],
+      "since": "1.0.0"
+    },
+    "inventory": {
+      "description": "Team inventory of agents, MCP servers, skills and hooks.",
+      "editions": [
+        "trial",
+        "team",
+        "enterprise"
+      ],
+      "since": "1.0.0"
+    },
+    "findings_basic": {
+      "description": "Posture and drift findings.",
+      "editions": [
+        "trial",
+        "team",
+        "enterprise"
+      ],
+      "since": "1.0.0"
+    },
+    "approvals": {
+      "description": "Ask decisions routed to Slack or Teams.",
+      "editions": [
+        "trial",
+        "team",
+        "enterprise"
+      ],
+      "since": "1.0.0"
+    },
+    "curated_feed": {
+      "description": "Curated risk feed with researcher review.",
+      "editions": [
+        "trial",
+        "team",
+        "enterprise"
+      ],
+      "since": "1.0.0"
+    },
+    "ticketing_sync": {
+      "description": "Two-way finding sync with Jira or Linear.",
+      "editions": [
+        "trial",
+        "team",
+        "enterprise"
+      ],
+      "since": "1.0.0"
+    },
+    "sso_scim": {
+      "description": "SAML or OIDC sign-in and SCIM provisioning.",
+      "editions": [
+        "enterprise"
+      ],
+      "since": "1.0.0"
+    },
+    "mdm_rollout": {
+      "description": "Silent sensor deployment through MDM.",
+      "editions": [
+        "enterprise"
+      ],
+      "since": "1.0.0"
+    },
+    "managed_hooks": {
+      "description": "Hooks installed in each agent's managed tier.",
+      "editions": [
+        "enterprise"
+      ],
+      "since": "1.0.0"
+    },
+    "tamper_detection": {
+      "description": "Alerts on heartbeat gaps, removed hooks and config drift.",
+      "editions": [
+        "enterprise"
+      ],
+      "since": "1.0.0"
+    },
+    "governance": {
+      "description": "Catalog, owners, risk tiers, access reviews and exceptions.",
+      "editions": [
+        "enterprise"
+      ],
+      "since": "1.0.0"
+    },
+    "policy_simulation": {
+      "description": "Replay a policy against past events before enforcing it.",
+      "editions": [
+        "enterprise"
+      ],
+      "since": "1.0.0"
+    },
+    "kill_switch": {
+      "description": "Stop an agent, session, user or fleet.",
+      "editions": [
+        "enterprise"
+      ],
+      "since": "1.0.0"
+    },
+    "audit_replay": {
+      "description": "Session search, replay, export and legal hold.",
+      "editions": [
+        "enterprise"
+      ],
+      "since": "1.0.0"
+    },
+    "compliance_reports": {
+      "description": "Framework mappings and evidence packs.",
+      "editions": [
+        "enterprise"
+      ],
+      "since": "1.0.0"
+    },
+    "siem_export": {
+      "description": "Event and finding export to SIEMs and S3.",
+      "editions": [
+        "enterprise"
+      ],
+      "since": "1.0.0"
+    },
+    "mcp_gateway": {
+      "description": "Remote MCP gateway.",
+      "editions": [
+        "enterprise"
+      ],
+      "since": "1.0.0"
+    },
+    "self_hosted": {
+      "description": "Self-hosted data plane.",
+      "editions": [
+        "enterprise"
+      ],
+      "since": "1.0.0"
+    }
+  }
+}

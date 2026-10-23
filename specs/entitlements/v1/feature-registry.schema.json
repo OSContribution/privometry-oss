@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://privometry.dev/specs/entitlements/v1/feature-registry.schema.json",
+  "title": "Privometry feature registry v1",
+  "description": "Every feature key and which editions include it. New features add keys; a key is never reused for something else.",
+  "type": "object",
+  "required": ["schema", "features"],
+  "properties": {
+    "schema": { "const": "privometry.feature_registry/v1" },
+    "features": {
+      "type": "object",
+      "propertyNames": { "$ref": "../../common/v1/common.schema.json#/$defs/snake_case" },
+      "additionalProperties": {
+        "type": "object",
+        "required": ["description", "editions", "since"],
+        "additionalProperties": false,
+        "properties": {
+          "description": { "type": "string", "minLength": 1 },
+          "editions": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": { "enum": ["free", "trial", "team", "enterprise"] }
+          },
+          "local": {
+            "type": "boolean",
+            "description": "Runs on the device without the cloud. Local features must be free and are never checked (ADR-0003)."
+          },
+          "since": { "$ref": "../../common/v1/common.schema.json#/$defs/semver", "description": "Spec version that added the key." }
+        },
+        "if": { "required": ["local"], "properties": { "local": { "const": true } } },
+        "then": { "properties": { "editions": { "contains": { "const": "free" } } } }
+      }
+    }
+  },
+  "additionalProperties": false
+}

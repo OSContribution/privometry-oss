@@ -1,0 +1,7 @@
+name: Privometry Scan
+description: Scan a repository for risky AI-agent configuration
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: "$GITHUB_ACTION_PATH/entrypoint.sh"

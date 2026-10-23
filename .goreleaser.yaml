@@ -1,0 +1,45 @@
+# Cross-platform release builds. Signing, SBOM, Homebrew and Scoop are added in M6.
+version: 2
+project_name: privometry
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - &bin
+    id: privometry
+    main: ./cmd/privometry
+    binary: privometry
+    env: [CGO_ENABLED=0]
+    flags: [-trimpath]
+    ldflags:
+      - -s -w
+      - -X github.com/privometry/privometry-oss/internal/buildinfo.Version={{.Version}}
+      - -X github.com/privometry/privometry-oss/internal/buildinfo.Commit={{.ShortCommit}}
+      - -X github.com/privometry/privometry-oss/internal/buildinfo.Date={{.Date}}
+    goos: [darwin, linux]   # windows arrives in P2
+    goarch: [amd64, arm64]
+  - <<: *bin
+    id: privometryd
+    main: ./cmd/privometryd
+    binary: privometryd
+  - <<: *bin
+    id: privometry-hook
+    main: ./cmd/privometry-hook
+    binary: privometry-hook
+  - <<: *bin
+    id: privometry-mcp-shim
+    main: ./cmd/privometry-mcp-shim
+    binary: privometry-mcp-shim
+
+archives:
+  - formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files: [LICENSE, NOTICE, README.md]
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  use: github
