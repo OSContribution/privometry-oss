@@ -16,7 +16,7 @@ Language-neutral contracts shared by the Go edge (this repo) and the Java platfo
 | `edge-api/v1` | `/edge/v1` (OpenAPI 3.1) and message schemas | Draft |
 | `conformance/` | policy verdicts, signatures, redaction | Draft |
 
-Go code imports this folder as `github.com/privometry/privometry-oss/specs`: the schemas and `privometry.cedarschema` are embedded, and `specs.Validate` checks a JSON or YAML file against one.
+Go code imports this folder as `gitlab.com/cn-solutions/privometry/privometry-oss/specs`: the schemas and `privometry.cedarschema` are embedded, and `specs.Validate` checks a JSON or YAML file against one.
 
 ## Generated Go types
 

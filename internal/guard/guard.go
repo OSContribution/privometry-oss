@@ -12,9 +12,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/privometry/privometry-oss/internal/adapters/registry"
-	"github.com/privometry/privometry-oss/internal/platform"
-	"github.com/privometry/privometry-oss/internal/scanner/parsers"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/adapters/registry"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/platform"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/scanner/parsers"
 )
 
 // Options say where the hook lives and what is installed.

@@ -26,10 +26,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/privometry/privometry-oss/internal/cloud/bundles"
-	"github.com/privometry/privometry-oss/internal/contract"
-	"github.com/privometry/privometry-oss/internal/policy/compiler"
-	"github.com/privometry/privometry-oss/internal/policy/rulepack"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/cloud/bundles"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/contract"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/policy/compiler"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/policy/rulepack"
 )
 
 // Layer names.

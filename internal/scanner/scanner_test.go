@@ -12,13 +12,13 @@ import (
 	"strings"
 	"testing"
 
-	adapterdefs "github.com/privometry/privometry-oss/adapter-defs"
-	"github.com/privometry/privometry-oss/internal/adapters/registry"
-	"github.com/privometry/privometry-oss/internal/contract"
-	"github.com/privometry/privometry-oss/internal/platform"
-	"github.com/privometry/privometry-oss/internal/scanner"
-	"github.com/privometry/privometry-oss/internal/scanner/discover"
-	"github.com/privometry/privometry-oss/internal/scanner/report"
+	adapterdefs "gitlab.com/cn-solutions/privometry/privometry-oss/adapter-defs"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/adapters/registry"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/contract"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/platform"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/scanner"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/scanner/discover"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/scanner/report"
 )
 
 // secrets are the fake credential values in the fixture; no report may contain them.

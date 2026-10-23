@@ -12,11 +12,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/privometry/privometry-oss/internal/buildinfo"
-	"github.com/privometry/privometry-oss/internal/daemon"
-	"github.com/privometry/privometry-oss/internal/policy"
-	"github.com/privometry/privometry-oss/internal/redact"
-	"github.com/privometry/privometry-oss/internal/timeline"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/buildinfo"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/daemon"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/policy"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/redact"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/timeline"
 )
 
 const (

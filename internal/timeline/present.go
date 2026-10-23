@@ -17,6 +17,8 @@ func (r Row) Outcome() string {
 		return "alert"
 	case "inventory":
 		return "inventory"
+	case "prompt":
+		return "prompt"
 	case "content_finding":
 		return "finding"
 	case "fail_mode":
@@ -89,6 +91,9 @@ func (r Row) Why() string {
 	case e.Decision != nil && len(e.Decision.RuleIDs) > 0:
 		return strings.Join(e.Decision.RuleIDs, ", ")
 	}
+	if e.Prompt != nil {
+		return "query captured without storing its text"
+	}
 	if reason, ok := e.Ext["x_privometry_reason"].(string); ok {
 		return reason
 	}
@@ -143,6 +148,8 @@ func (r Row) Kind() string {
 		return "Config"
 	case e.Integrity != nil:
 		return "Integrity"
+	case e.Prompt != nil:
+		return "Query"
 	}
 	return ""
 }

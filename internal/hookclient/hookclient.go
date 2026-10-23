@@ -19,12 +19,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/privometry/privometry-oss/internal/contract"
-	"github.com/privometry/privometry-oss/internal/events"
-	"github.com/privometry/privometry-oss/internal/ipc"
-	"github.com/privometry/privometry-oss/internal/platform"
-	"github.com/privometry/privometry-oss/internal/policy/intent"
-	"github.com/privometry/privometry-oss/internal/redact"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/contract"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/events"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/ipc"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/platform"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/policy/intent"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/redact"
 )
 
 // DefaultTimeout is how long privometry-hook waits for the daemon. The first call

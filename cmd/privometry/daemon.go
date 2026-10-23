@@ -13,10 +13,10 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/privometry/privometry-oss/internal/daemon"
-	"github.com/privometry/privometry-oss/internal/daemon/service"
-	"github.com/privometry/privometry-oss/internal/ipc"
-	"github.com/privometry/privometry-oss/internal/platform"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/daemon"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/daemon/service"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/ipc"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/platform"
 )
 
 const daemonUsage = `Usage: privometry daemon <install|uninstall|status|restart> [flags]

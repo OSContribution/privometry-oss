@@ -19,7 +19,7 @@ Supported adapter definitions currently ship for Claude Code, Codex, and Cursor.
 Prerequisites: Go 1.25 or newer, Git, and a supported macOS or Linux development environment.
 
 ```sh
-git clone https://github.com/privometry/privometry-oss.git
+git clone https://gitlab.com/cn-solutions/privometry/privometry-oss.git
 cd privometry-oss
 make test
 make build

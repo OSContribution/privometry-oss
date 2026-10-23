@@ -1,13 +1,13 @@
 # Publishing the Wiki
 
-The canonical wiki source lives in `docs/wiki/` so documentation changes can be reviewed with code. The directory also follows GitHub Wiki conventions: `Home.md` is the landing page and `_Sidebar.md` defines navigation.
+The canonical wiki source lives in `docs/wiki/` so documentation changes can be reviewed with code. The directory follows GitLab Wiki conventions: `Home.md` is the landing page and `_Sidebar.md` defines navigation.
 
-## Publish to GitHub Wiki
+## Publish to GitLab Wiki
 
 Enable the repository Wiki, then clone its separate Git repository:
 
 ```sh
-git clone https://github.com/privometry/privometry-oss.wiki.git /tmp/privometry-oss-wiki
+git clone https://gitlab.com/cn-solutions/privometry/privometry-oss.wiki.git /tmp/privometry-oss-wiki
 ```
 
 Synchronize Markdown files from a clean checkout:
@@ -32,4 +32,4 @@ Review the `--delete` preview and destination before publishing. The repository 
 
 ## Suggested automation
 
-A future workflow can publish `docs/wiki/` after changes merge to `main`. Use a narrowly scoped credential, protect the Wiki branch, and require the same documentation review that applies to repository changes.
+A future GitLab CI job can publish `docs/wiki/` after changes merge to `main`. Use a narrowly scoped project access token with repository write access, protect the Wiki branch, and require the same documentation review that applies to repository changes.

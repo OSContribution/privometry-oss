@@ -1,4 +1,4 @@
-module github.com/privometry/privometry-oss
+module gitlab.com/cn-solutions/privometry/privometry-oss
 
 go 1.25.0
 

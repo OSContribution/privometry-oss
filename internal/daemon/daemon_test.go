@@ -7,18 +7,19 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
-	adapterdefs "github.com/privometry/privometry-oss/adapter-defs"
-	"github.com/privometry/privometry-oss/internal/adapters/registry"
-	"github.com/privometry/privometry-oss/internal/daemon"
-	"github.com/privometry/privometry-oss/internal/ipc"
-	"github.com/privometry/privometry-oss/internal/platform"
-	"github.com/privometry/privometry-oss/internal/policy"
-	"github.com/privometry/privometry-oss/internal/timeline"
-	"github.com/privometry/privometry-oss/specs"
+	adapterdefs "gitlab.com/cn-solutions/privometry/privometry-oss/adapter-defs"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/adapters/registry"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/daemon"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/ipc"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/platform"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/policy"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/timeline"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/specs"
 )
 
 const fixtures = "../../test/fixtures/claude_code/2.1.304/hooks/"
@@ -196,8 +197,14 @@ func TestUntrustedInputAndConfigChange(t *testing.T) {
 
 func TestCodexAndCursor(t *testing.T) {
 	d, _ := newDaemon(t)
+	query := "Summarize the repository without changing files."
+	resp := hook(t, d, "codex_cli", "UserPromptSubmit", json.RawMessage(`{"session_id":"c1","prompt_id":"p1",`+
+		`"prompt":`+strconv.Quote(query)+`,"cwd":"/home/dev/work/api"}`))
+	if resp.Stdout != "" || resp.ExitCode != 0 {
+		t.Errorf("prompt hook must observe without changing Codex behavior: %+v", resp)
+	}
 	// Codex cannot ask: ask becomes deny, and the event records both.
-	resp := hook(t, d, "codex_cli", "PreToolUse", json.RawMessage(`{"session_id":"c1","tool_name":"Bash","tool_use_id":"call_1",
+	resp = hook(t, d, "codex_cli", "PreToolUse", json.RawMessage(`{"session_id":"c1","tool_name":"Bash","tool_use_id":"call_1",
 		"tool_input":{"command":"cat .env"},"cwd":"/home/dev/work/api"}`))
 	if v, _ := decision(t, resp); v != "deny" {
 		t.Errorf("codex ask must reach the agent as deny: %s", v)
@@ -235,6 +242,14 @@ func TestCodexAndCursor(t *testing.T) {
 	codex := rows[2]
 	if codex.Event.Decision.Verdict != "ask" || codex.Event.Decision.NativeVerdict != "deny" {
 		t.Errorf("codex event verdict %s native %s", codex.Event.Decision.Verdict, codex.Event.Decision.NativeVerdict)
+	}
+	prompt := rows[3]
+	if prompt.Event.Type != "prompt" || prompt.Event.Prompt == nil || prompt.Event.Prompt.Characters != int64(len([]rune(query))) ||
+		!strings.HasPrefix(prompt.Event.Prompt.Fingerprint, "hmac-sha256:") || strings.Contains(prompt.TargetClear, query) {
+		t.Errorf("prompt event must contain private metadata only: %+v clear=%q", prompt.Event, prompt.TargetClear)
+	}
+	if raw, _ := json.Marshal(prompt.Event); strings.Contains(string(raw), query) {
+		t.Errorf("raw prompt leaked into stored event: %s", raw)
 	}
 }
 

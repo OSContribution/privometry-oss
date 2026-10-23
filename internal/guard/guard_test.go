@@ -9,10 +9,10 @@ import (
 	"strings"
 	"testing"
 
-	adapterdefs "github.com/privometry/privometry-oss/adapter-defs"
-	"github.com/privometry/privometry-oss/internal/adapters/registry"
-	"github.com/privometry/privometry-oss/internal/contract"
-	"github.com/privometry/privometry-oss/internal/platform"
+	adapterdefs "gitlab.com/cn-solutions/privometry/privometry-oss/adapter-defs"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/adapters/registry"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/contract"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/platform"
 )
 
 const existing = `{
@@ -281,6 +281,11 @@ func TestCodex(t *testing.T) {
 	entry := pre["hooks"].([]any)[0].(map[string]any)
 	if pre["matcher"] != ".*" || entry["type"] != "command" || entry["command"] != "/usr/local/bin/privometry-hook codex_cli PreToolUse" {
 		t.Errorf("PreToolUse: %v %v", pre, entry)
+	}
+	prompt := m["hooks"].(map[string]any)["UserPromptSubmit"].([]any)[0].(map[string]any)
+	promptEntry := prompt["hooks"].([]any)[0].(map[string]any)
+	if promptEntry["command"] != "/usr/local/bin/privometry-hook codex_cli UserPromptSubmit" {
+		t.Errorf("UserPromptSubmit: %v", promptEntry)
 	}
 	if c.FailClosed || !strings.Contains(c.TrustInstructions, "/hooks") {
 		t.Errorf("codex has no fail-closed option and needs trust: %+v", c)

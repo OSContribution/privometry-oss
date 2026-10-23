@@ -77,7 +77,9 @@ privometry guard uninstall              # remove only Privometry's entries
 |---|---|---|---|
 | Claude Code | `~/.claude/settings.json` | `onFailure: block` on `PreToolUse`, version 2.1.295 and later | |
 | Cursor | `~/.cursor/hooks.json` | `failClosed: true` on decision events | Shell and MCP events can ask; `preToolUse` covers writes, deletes and subagents |
-| Codex CLI | `~/.codex/hooks.json` | Not available: if `privometry-hook` crashes, the action proceeds | Codex runs a new user hook only after you trust it: open Codex and run `/hooks` once. `install` prints this step and warns if `[features] hooks = false` in `config.toml` |
+| Codex CLI | `~/.codex/hooks.json` | Not available: if `privometry-hook` crashes, the action proceeds | `UserPromptSubmit` records privacy-preserving query metadata; `PreToolUse` guards actions. Codex runs a new user hook only after you trust it: open Codex and run `/hooks` once. `install` prints this step and warns if `[features] hooks = false` in `config.toml` |
+
+After upgrading from a version that only registered tool hooks, run `privometry guard install --agent codex_cli` again and approve the updated hook set through Codex `/hooks`. Query events store a device-keyed fingerprint, prompt identifier and character count. The raw query text is never written to the timeline event database.
 
 `guard status` shows each agent's state and its last hook call from the daemon. A Codex hook that is installed but has never fired shows "no calls yet: Open Codex, run /hooks and trust the Privometry hook once".
 

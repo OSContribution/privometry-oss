@@ -14,7 +14,7 @@ Windows-specific paths and permissions exist in the codebase, but background ser
 ## Build
 
 ```sh
-git clone https://github.com/privometry/privometry-oss.git
+git clone https://gitlab.com/cn-solutions/privometry/privometry-oss.git
 cd privometry-oss
 make test
 make build

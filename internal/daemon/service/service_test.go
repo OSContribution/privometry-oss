@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/privometry/privometry-oss/internal/platform"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/platform"
 )
 
 type recorder struct {

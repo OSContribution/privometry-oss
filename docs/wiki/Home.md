@@ -18,7 +18,7 @@ This wiki is the integration and maintenance guide for Privometry OSS. It covers
 | Diagnose a broken installation | [Operations and Troubleshooting](Operations-and-Troubleshooting.md) |
 | Review privacy and security guarantees | [Security and Privacy](Security-and-Privacy.md) |
 | Look up project terminology | [Glossary](Glossary.md) |
-| Publish repository docs to GitHub Wiki | [Publishing the Wiki](Publishing-the-Wiki.md) |
+| Publish repository docs to GitLab Wiki | [Publishing the Wiki](Publishing-the-Wiki.md) |
 
 ## Non-negotiable architecture rules
 

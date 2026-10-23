@@ -10,10 +10,10 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/privometry/privometry-oss/internal/contract"
-	"github.com/privometry/privometry-oss/internal/scanner"
-	"github.com/privometry/privometry-oss/internal/scanner/discover"
-	"github.com/privometry/privometry-oss/internal/scanner/posture"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/contract"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/scanner"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/scanner/discover"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/scanner/posture"
 )
 
 // Write renders res in format: table, json or sarif.
@@ -348,7 +348,7 @@ func SARIF(w io.Writer, res *scanner.Result) error {
 		Schema:  "https://json.schemastore.org/sarif-2.1.0.json",
 		Version: "2.1.0",
 		Runs: []sarifRun{{
-			Tool:    sarifTool{Driver: sarifDriver{Name: "Privometry", Version: res.SensorVersion, InformationURI: "https://github.com/privometry/privometry-oss", Rules: rules}},
+			Tool:    sarifTool{Driver: sarifDriver{Name: "Privometry", Version: res.SensorVersion, InformationURI: "https://gitlab.com/cn-solutions/privometry/privometry-oss", Rules: rules}},
 			Results: results,
 		}},
 	}

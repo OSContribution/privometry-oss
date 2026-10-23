@@ -7,14 +7,14 @@ import (
 	"path/filepath"
 	"testing"
 
-	adapterdefs "github.com/privometry/privometry-oss/adapter-defs"
-	"github.com/privometry/privometry-oss/internal/adapters/registry"
-	"github.com/privometry/privometry-oss/internal/contract"
-	"github.com/privometry/privometry-oss/internal/daemon"
-	"github.com/privometry/privometry-oss/internal/guard"
-	"github.com/privometry/privometry-oss/internal/platform"
-	"github.com/privometry/privometry-oss/internal/policy"
-	"github.com/privometry/privometry-oss/internal/timeline"
+	adapterdefs "gitlab.com/cn-solutions/privometry/privometry-oss/adapter-defs"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/adapters/registry"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/contract"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/daemon"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/guard"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/platform"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/policy"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/timeline"
 )
 
 func TestIntegrity(t *testing.T) {

@@ -1,6 +1,6 @@
 # privometry-oss implementation plan
 
-Covers P0 (the seven specs) and P1 (open-source MVP): scanner and guard for Claude Code, Cursor and Codex CLI on macOS and Linux, local timeline, GitHub Action, signed releases. Edge work for P2 is listed at the end.
+Covers P0 (the seven specs) and P1 (open-source MVP): scanner and guard for Claude Code, Cursor and Codex CLI on macOS and Linux, local timeline, repository CI integration, and signed releases. Edge work for P2 is listed at the end.
 
 Sources: Privometry PRD, Contracts v1 (P0), Database design v1 (edge SQLite), console and local guard prototype.
 
@@ -22,7 +22,7 @@ Sources: Privometry PRD, Contracts v1 (P0), Database design v1 (edge SQLite), co
 | M4 | Daemon and hooks | `daemon`, `ipc`, `cmd/privometry-hook`, `adapters/<agent>`, `timeline` | launchd and systemd service; user-only Unix socket; small hook client with built-in closed rules for when the daemon is down; `guard install` / `uninstall` per agent; native response per agent; SQLite tables per the DB design (WAL, gap-free `device_seq`); fail modes; latency benchmark | 5–8 |
 | M5 | Developer experience | `ui/timeline-web`, `update`, `integrity`, `config` | Terminal and embedded web timeline; `doctor` and redacted diagnostic bundle; signed self-update that refuses downgrades; config hashing (head start on EDGE-24) | 7–9 |
 | M6 | Content scanning | `specs/detectorpack/v1`, `internal/content`, `detectorpacks/`, `adapter-defs/*.yaml`, `daemon`, `scanner` | PRD SCAN-01 to SCAN-11: memory and instruction file discovery per agent and tier; hashing with person-or-agent attribution; detector engine (pattern, entropy, Unicode, structure; keyword prefilter, allowlists, masked excerpts, salted fingerprints); detector packs for credentials, injected and safety-weakening instructions, hidden content; facts `secret_detected`, `injection_detected`, `injection_seen`, `hidden_content`, `target_class`; `content_finding` events and the local `content_findings` table; pack rules to ask on secrets in commands, writes and MCP arguments, deny secrets to the network, ask on memory edits and deny them after injection; at-rest scans in `privometry scan` and daily; 5 ms p95 for inputs up to 64 KB | 9–11 |
-| M7 | Action and release | `action/`, `.goreleaser.yaml`, `docs/` | GitHub Action (flag agent-config and memory-file changes in PRs, run the content detectors (SCAN-08), validate `.privometry/policy.yaml`, SARIF, severity gate); Homebrew, Scoop, binaries, signatures, SBOM, license scan; design-partner beta | 8–10 |
+| M7 | CI integration and release | `.gitlab-ci.yml`, `action/`, `.goreleaser.yaml`, `docs/` | GitLab CI integration plus the optional GitHub Action (flag agent-config and memory-file changes in merge/pull requests, run content detectors, validate `.privometry/policy.yaml`, publish findings, enforce a severity gate); Homebrew, Scoop, binaries, signatures, SBOM, license scan; design-partner beta | 8–10 |
 | P2 | Edge for Team | `cloud/*`, `mcpshim`, Windows, Gemini and Copilot adapters | Enrollment and mTLS, bundle and entitlement sync, upload queue, heartbeat and kill switch, stdio MCP shim, named-pipe IPC | After P1 gate |
 
 **Critical path:** hook-format spike → adapter definitions → intent parser and compiler → hook client and daemon → latency gate. M1 and M2 run in parallel with the start of M3.
@@ -66,7 +66,7 @@ Week estimates assume 2–3 engineers.
 - [ ] Record Cursor and Codex payloads (spike follow-up).
 - [ ] Fix the adapter response shape in Contracts v1 (`hookSpecificOutput` for Claude Code and Codex, `permission` for Cursor).
 - [ ] `release` Ed25519 key and root key set: who holds and rotates them. Blocks `privometry update`, which ships with no release keys and refuses every update until `internal/update/keys/release-keys.json` exists.
-- [ ] Release manifest host: `privometry update` defaults to the GitHub release asset `release.json`; confirm once the GitHub org is chosen.
+- [x] Release manifest host: `privometry update` defaults to the GitLab latest-release direct asset `release.json` for `cn-solutions/privometry/privometry-oss`.
 - [ ] Fail-mode defaults per category (needed by M4).
 - [ ] P1 team size, to firm up estimates.
 - [ ] Contracts v1 says "five event types" but now lists six (`content_finding` added); fix the wording.

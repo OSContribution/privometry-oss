@@ -15,8 +15,8 @@ import (
 
 	_ "modernc.org/sqlite" // pure-Go SQLite driver
 
-	"github.com/privometry/privometry-oss/internal/contract"
-	"github.com/privometry/privometry-oss/internal/events"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/contract"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/events"
 )
 
 // Store is an open timeline database.
@@ -458,6 +458,7 @@ type SessionSummary struct {
 	LastEventAt   time.Time `json:"last_event_at"`
 	Ended         bool      `json:"ended"`
 	Actions       int       `json:"actions"`
+	Prompts       int       `json:"prompts"`
 	Asked         int       `json:"asked"`
 	Blocked       int       `json:"blocked"`
 	Findings      int       `json:"findings"`
@@ -473,7 +474,7 @@ func (s *Store) Sessions(limit int) ([]SessionSummary, error) {
 	}
 	rows, err := s.db.Query(`SELECT s.session_id, s.agent_product, COALESCE(s.repo_remote, ''), s.started_at, s.last_event_at,
 		s.ended_at IS NOT NULL, s.untrusted_input_seen, s.injection_seen,
-		COALESCE(SUM(e.type = 'action'), 0), COALESCE(SUM(e.type = 'action' AND e.verdict = 'ask'), 0),
+		COALESCE(SUM(e.type = 'action'), 0), COALESCE(SUM(e.type = 'prompt'), 0), COALESCE(SUM(e.type = 'action' AND e.verdict = 'ask'), 0),
 		COALESCE(SUM(e.type IN ('action', 'fail_mode') AND e.verdict = 'deny'), 0), COALESCE(SUM(e.type = 'content_finding'), 0)
 		FROM sessions s LEFT JOIN events e ON e.session_id = s.session_id
 		WHERE s.native_session_id <> 'privometry-file-watcher'
@@ -487,7 +488,7 @@ func (s *Store) Sessions(limit int) ([]SessionSummary, error) {
 		var x SessionSummary
 		var started, last string
 		if err := rows.Scan(&x.ID, &x.Agent, &x.Repo, &started, &last, &x.Ended, &x.Untrusted, &x.InjectionSeen,
-			&x.Actions, &x.Asked, &x.Blocked, &x.Findings); err != nil {
+			&x.Actions, &x.Prompts, &x.Asked, &x.Blocked, &x.Findings); err != nil {
 			return nil, err
 		}
 		x.StartedAt, _ = time.Parse(time.RFC3339, started)

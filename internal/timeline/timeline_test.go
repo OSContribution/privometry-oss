@@ -3,13 +3,14 @@ package timeline_test
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/privometry/privometry-oss/internal/contract"
-	"github.com/privometry/privometry-oss/internal/events"
-	"github.com/privometry/privometry-oss/internal/timeline"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/contract"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/events"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/timeline"
 )
 
 func open(t *testing.T) (*timeline.Store, string) {
@@ -112,6 +113,17 @@ func TestDeviceIDAndSessions(t *testing.T) {
 	}
 	if id3, _ := s2.DeviceID(); id3 != id1 {
 		t.Errorf("device id changed after reopen")
+	}
+}
+
+func TestPromptPresentation(t *testing.T) {
+	r := timeline.Row{Event: events.Event{Type: events.EventTypePrompt,
+		Prompt: &events.Prompt{Fingerprint: "hmac-sha256:" + strings.Repeat("a", 64), Characters: 12}},
+		TargetClear: "Query submitted (12 characters)"}
+	if r.Outcome() != "prompt" || r.Label() != "PROMPT" || r.Kind() != "Query" ||
+		r.Target("") != "Query submitted (12 characters)" || !strings.Contains(r.Why(), "without storing") {
+		t.Errorf("prompt presentation: outcome=%q label=%q kind=%q target=%q why=%q",
+			r.Outcome(), r.Label(), r.Kind(), r.Target(""), r.Why())
 	}
 }
 
@@ -246,6 +258,11 @@ func TestSessionSummaries(t *testing.T) {
 		ev.Decision.LatencyMs = float64(i + 1)
 		s.Append(ev, "x")
 	}
+	s.Append(&events.Event{Schema: events.EventSchema, EventID: contract.NewID("evt"), Type: events.EventTypePrompt,
+		OccurredAt: contract.At(now), Device: events.Device{DeviceID: "dev_x", OS: "macos"},
+		Agent:     &events.Agent{Product: contract.AgentProductClaudeCode, SessionID: a.ID},
+		Prompt:    &events.Prompt{Fingerprint: "hmac-sha256:" + strings.Repeat("a", 64), Characters: 12},
+		Redaction: map[string]contract.PrivacyLevel{}}, "Query submitted (12 characters)")
 	s.MarkInjected(a.ID)
 	ss, err := s.Sessions(10)
 	if err != nil {
@@ -255,7 +272,7 @@ func TestSessionSummaries(t *testing.T) {
 		t.Fatalf("sessions %+v, want two, most recent first", ss)
 	}
 	got := ss[1]
-	if got.Actions != 3 || got.Asked != 1 || got.Blocked != 1 || !got.InjectionSeen || got.Repo != "github.com/acme/api" {
+	if got.Actions != 3 || got.Prompts != 1 || got.Asked != 1 || got.Blocked != 1 || !got.InjectionSeen || got.Repo != "github.com/acme/api" {
 		t.Errorf("session %+v", got)
 	}
 	if tally, _ := s.Tally(now.Add(-2 * time.Hour)); tally.AvgLatencyMs != 2 {

@@ -1,5 +1,5 @@
 GO        ?= go
-PKG       := github.com/privometry/privometry-oss
+PKG       := gitlab.com/cn-solutions/privometry/privometry-oss
 VERSION   ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 COMMIT    ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo none)
 DATE      ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)

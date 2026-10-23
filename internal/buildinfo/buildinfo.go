@@ -3,7 +3,7 @@ package buildinfo
 
 import "fmt"
 
-// Set with -ldflags "-X github.com/privometry/privometry-oss/internal/buildinfo.Version=...".
+// Set with -ldflags "-X gitlab.com/cn-solutions/privometry/privometry-oss/internal/buildinfo.Version=...".
 var (
 	Version = "dev"
 	Commit  = "none"
