@@ -178,6 +178,12 @@ hooks:
       request: { session_id: /session_id, cwd: /cwd, config_source: /source, config_path: /file_path }
       responses:
         none: { exit_code: 0, stdout: null }
+    - name: InstructionsLoaded
+      role: instructions_loaded
+      verdicts: []
+      request: { session_id: /session_id, cwd: /cwd, file_path: /file_path, memory_type: /memory_type, load_reason: /load_reason }
+      responses:
+        none: { exit_code: 0, stdout: null }
 tool_kinds:
   Bash: shell_exec
   PowerShell: shell_exec

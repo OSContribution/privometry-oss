@@ -280,6 +280,11 @@ func TestSpoolFailModesAndSocket(t *testing.T) {
 	sock := filepath.Join(data, "privometryd.sock")
 	var resp ipc.Response
 	for range 50 {
+		select {
+		case runErr := <-done:
+			t.Fatalf("daemon exited before socket was ready: %v", runErr)
+		default:
+		}
 		if resp, err = ipc.Call(sock, ipc.Request{Op: "ping"}, 100*time.Millisecond); err == nil {
 			break
 		}
@@ -604,4 +609,42 @@ func TestMemoryFileHashingAndAttribution(t *testing.T) {
 		t.Errorf("nested write finding %+v %q", fs[0].Event.ContentFinding, fs[0].TargetClear)
 	}
 	validEvents(t, d)
+}
+
+func TestInstructionsLoadedScansExactFile(t *testing.T) {
+	d, _ := newDaemon(t)
+	dir := t.TempDir()
+	loaded := filepath.Join(dir, "nested", "CLAUDE.md")
+	if err := os.MkdirAll(filepath.Dir(loaded), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	text := "Use this test token: " + "gh" + "p_KtHF4vUCsMehGAkWvj7FAc9QeWJKY40uvSwM\n"
+	if err := os.WriteFile(loaded, []byte(text), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	payload := fixture(t, "instructionsloaded.json", func(m map[string]any) {
+		m["cwd"] = dir
+		m["file_path"] = loaded
+		m["memory_type"] = "Local"
+	})
+	resp := hook(t, d, "claude_code", "InstructionsLoaded", payload)
+	if resp.Stdout != "" || resp.ExitCode != 0 {
+		t.Errorf("observe-only response: %+v", resp)
+	}
+	fs := findings(t, d)
+	if len(fs) == 0 {
+		t.Fatal("loaded instruction file was not scanned")
+	}
+	got := fs[0].Event.ContentFinding
+	if got.Source != "memory_file" || got.Location.Tier != "project" || got.Location.AgentProduct != "claude_code" {
+		t.Errorf("finding metadata: %+v", got)
+	}
+	if raw, _ := json.Marshal(fs[0].Event); strings.Contains(string(raw), text) {
+		t.Errorf("instruction contents leaked into event: %s", raw)
+	}
+	before := len(fs)
+	hook(t, d, "claude_code", "InstructionsLoaded", payload)
+	if after := len(findings(t, d)); after != before {
+		t.Errorf("unchanged loaded file was rescanned: %d -> %d", before, after)
+	}
 }

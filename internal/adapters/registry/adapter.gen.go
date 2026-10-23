@@ -331,18 +331,19 @@ type HookEventRole string
 
 // Values of HookEventRole.
 const (
-	HookEventRolePreTool           HookEventRole = "pre_tool"
-	HookEventRolePreShell          HookEventRole = "pre_shell"
-	HookEventRolePreMCP            HookEventRole = "pre_mcp"
-	HookEventRolePreFileRead       HookEventRole = "pre_file_read"
-	HookEventRolePostTool          HookEventRole = "post_tool"
-	HookEventRolePermissionRequest HookEventRole = "permission_request"
-	HookEventRoleSessionStart      HookEventRole = "session_start"
-	HookEventRoleSessionEnd        HookEventRole = "session_end"
-	HookEventRoleConfigChange      HookEventRole = "config_change"
-	HookEventRolePromptSubmit      HookEventRole = "prompt_submit"
-	HookEventRoleSubagentStart     HookEventRole = "subagent_start"
-	HookEventRoleSubagentStop      HookEventRole = "subagent_stop"
+	HookEventRolePreTool            HookEventRole = "pre_tool"
+	HookEventRolePreShell           HookEventRole = "pre_shell"
+	HookEventRolePreMCP             HookEventRole = "pre_mcp"
+	HookEventRolePreFileRead        HookEventRole = "pre_file_read"
+	HookEventRolePostTool           HookEventRole = "post_tool"
+	HookEventRolePermissionRequest  HookEventRole = "permission_request"
+	HookEventRoleSessionStart       HookEventRole = "session_start"
+	HookEventRoleSessionEnd         HookEventRole = "session_end"
+	HookEventRoleConfigChange       HookEventRole = "config_change"
+	HookEventRoleInstructionsLoaded HookEventRole = "instructions_loaded"
+	HookEventRolePromptSubmit       HookEventRole = "prompt_submit"
+	HookEventRoleSubagentStart      HookEventRole = "subagent_start"
+	HookEventRoleSubagentStop       HookEventRole = "subagent_stop"
 )
 
 // Response is generated from adapter/v1/adapter.schema.json#/$defs/response.

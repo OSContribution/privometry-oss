@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/adapters/registry"
@@ -259,4 +260,45 @@ func (d *Daemon) memoryTargets(actions []intent.Action, sess *sessionInfo) []str
 		}
 	}
 	return out
+}
+
+// instructionsLoaded handles Claude Code's observe-only InstructionsLoaded
+// hook. It hashes and scans the exact instruction file before Claude proceeds,
+// including nested CLAUDE.md and rule files that the periodic watcher cannot
+// discover from the workspace root alone.
+func (d *Daemon) instructionsLoaded(c call) error {
+	sess, err := d.session(c)
+	if err != nil {
+		return err
+	}
+	p := strings.TrimSpace(c.str("file_path"))
+	if p == "" {
+		return nil
+	}
+	if !filepath.IsAbs(p) {
+		p = filepath.Join(sess.Cwd, p)
+	}
+	p = filepath.Clean(p)
+
+	tier := contract.ConfigTierProject
+	switch strings.ToLower(c.str("memory_type")) {
+	case "user":
+		tier = contract.ConfigTierUser
+	case "managed", "policy":
+		tier = contract.ConfigTierManaged
+	case "local", "project":
+		tier = contract.ConfigTierProject
+	}
+	kind := registry.AdapterMemoryFileKindInstructions
+	if strings.Contains(filepath.ToSlash(p), "/.claude/rules/") {
+		kind = registry.AdapterMemoryFileKindRules
+	}
+	m := memoryFile{agent: c.adapter, path: p, tier: tier, kind: kind}
+	prev, err := d.store.ConfigHashes()
+	if err != nil {
+		return err
+	}
+	old, known := prev[p]
+	_, err = d.checkMemoryFile(m, old, known, "")
+	return err
 }

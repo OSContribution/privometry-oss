@@ -102,6 +102,8 @@ func (d *Daemon) hook(h ipc.HookRequest) (ipc.Response, error) {
 		return none(ev), d.promptSubmit(c)
 	case registry.HookEventRoleConfigChange:
 		return none(ev), d.configChange(c)
+	case registry.HookEventRoleInstructionsLoaded:
+		return none(ev), d.instructionsLoaded(c)
 	}
 	return none(ev), nil
 }

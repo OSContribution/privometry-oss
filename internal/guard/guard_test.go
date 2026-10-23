@@ -95,7 +95,7 @@ func TestInstallIntoExistingSettings(t *testing.T) {
 	if _, ok := post["onFailure"]; ok {
 		t.Error("only decision hooks fail closed")
 	}
-	for _, ev := range []string{"SessionStart", "SessionEnd", "ConfigChange"} {
+	for _, ev := range []string{"SessionStart", "SessionEnd", "ConfigChange", "InstructionsLoaded"} {
 		if _, ok := hooks[ev]; !ok {
 			t.Errorf("%s not registered", ev)
 		}
