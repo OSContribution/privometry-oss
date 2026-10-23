@@ -722,6 +722,7 @@
             "session_start",
             "session_end",
             "config_change",
+            "instructions_loaded",
             "prompt_submit",
             "subagent_start",
             "subagent_stop"
@@ -774,7 +775,9 @@
               "agent_version",
               "workspace_roots",
               "config_source",
-              "config_path"
+              "config_path",
+              "memory_type",
+              "load_reason"
             ]
           },
           "additionalProperties": {

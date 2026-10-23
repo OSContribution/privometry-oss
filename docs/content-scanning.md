@@ -107,7 +107,7 @@ On the development Mac this found 33 Claude Code memory files. The first run rai
 
 ## Still to do
 
-- Claude Code's `InstructionsLoaded` hook (fires when any `CLAUDE.md` or rule file loads, with its path and scope) is not registered yet; it would scan files the moment they load instead of within a minute.
+- Claude Code's `InstructionsLoaded` hook scans each loaded `CLAUDE.md` or rule file immediately, including nested files that are not discoverable from the workspace root. Unchanged files are deduplicated by content hash.
 - The hook client's fail-mode path (daemon down) does not detect credentials yet.
 - Memory files are not rescanned daily when unchanged, so a new detector pack version only applies to files that change; snapshots and rollback are P2 (SCAN-14).
 - Content agents read is scanned for injection (SCAN-12, a P2 Should) but with phrasing heuristics: security docs that discuss prompt injection without quoting it can still mark a session.
