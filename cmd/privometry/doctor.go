@@ -17,6 +17,7 @@ import (
 	adapterdefs "gitlab.com/cn-solutions/privometry/privometry-oss/adapter-defs"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/adapters/registry"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/buildinfo"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/contract"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/daemon"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/daemon/service"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/guard"
@@ -323,7 +324,7 @@ func (r *doctorRun) checkProbe(enabled bool) {
 func (r *doctorRun) checkFailModes() {
 	c := Check{ID: "fail_modes", Title: "Fail modes", Status: "ok"}
 	modes := map[string]string{}
-	for k, v := range merge.DefaultFailModes {
+	for k, v := range contract.DefaultFailModes() {
 		modes[k] = string(v)
 	}
 	source := "defaults"

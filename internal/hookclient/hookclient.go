@@ -109,7 +109,6 @@ var formats = map[string]map[string]format{
 		"beforeMCPExecution": {"cursor", true}, "beforeReadFile": {"cursor", false}},
 }
 
-var defaultFailModes = map[string]string{"catastrophic": "closed", "secrets": "ask", "exfiltration": "ask", "unapproved_mcp": "open", "other": "open"}
 var failStrength = map[string]int{"open": 1, "ask": 2, "closed": 3}
 
 func fallback(agent, event string, payload []byte, reason string, start time.Time, stdout io.Writer, opts Options) int {
@@ -286,8 +285,8 @@ func reply(style, event, verdict, message string) string {
 
 func loadFailModes(env platform.Env) map[string]string {
 	modes := map[string]string{}
-	for k, v := range defaultFailModes {
-		modes[k] = v
+	for k, v := range contract.DefaultFailModes() {
+		modes[k] = string(v)
 	}
 	dir, err := env.DataDir()
 	if err != nil {

@@ -74,12 +74,6 @@ type Result struct {
 	Diagnostics []Diagnostic
 }
 
-// DefaultFailModes are the proposed defaults for Free and Team.
-var DefaultFailModes = map[string]contract.FailMode{
-	"catastrophic": contract.FailModeClosed, "secrets": contract.FailModeAsk, "exfiltration": contract.FailModeAsk,
-	"unapproved_mcp": contract.FailModeOpen, "other": contract.FailModeOpen,
-}
-
 var verdictStrength = map[string]int{"allow": 1, "ask": 2, "deny": 3}
 var failStrength = map[contract.FailMode]int{contract.FailModeOpen: 1, contract.FailModeAsk: 2, contract.FailModeClosed: 3}
 var unmatchedStrength = map[string]int{"allow": 1, "auto": 2, "ask": 3}
@@ -122,7 +116,7 @@ func Merge(in Input) (*Result, error) {
 	m.applyExceptions(sources)
 
 	res := &Result{Rules: map[string]bundles.BundleRule{}, Unmatched: "auto", FailModes: map[string]contract.FailMode{}}
-	for k, v := range DefaultFailModes {
+	for k, v := range contract.DefaultFailModes() {
 		res.FailModes[k] = v
 	}
 	for _, p := range packs {

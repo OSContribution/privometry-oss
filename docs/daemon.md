@@ -53,7 +53,7 @@ The service runs as the user, never root. `PRIVOMETRY_HOME` is carried into the 
 The client agents run (`cmd/privometry-hook`, `internal/hookclient`): `privometry-hook <agent> <event>`, payload on stdin.
 
 - Sends the call to the daemon with a 200 ms budget (`PRIVOMETRY_HOOK_TIMEOUT_MS`) and prints its reply.
-- If the daemon is down, slow or fails, it decides alone: extracts facts with the same extractors, maps each request to a category, and applies the fail mode from `failmodes.json` (written by the daemon) or the defaults: catastrophic **closed** (deny), secrets and exfiltration **ask** (deny where the agent cannot ask), everything else **open**.
+- If the daemon is down, slow or fails, it decides alone: extracts facts with the same extractors, maps each request to a category, and applies the fail mode from `failmodes.json` (written by the daemon) or the confirmed P1 defaults: catastrophic **closed** (deny), secrets and exfiltration **ask** (deny where the agent cannot ask), everything else **open**. The daemon, hook client, and doctor share one canonical definition of these defaults.
 - **Open never auto-approves**: it prints nothing, so the agent's own permission prompt still applies.
 - Each fallback decision is appended to `spool.jsonl` (capped at 10 MB) as a `fail_mode` event.
 - Its fallback replies are built in and tested against the adapter templates, so they cannot drift.

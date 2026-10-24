@@ -67,7 +67,7 @@ Week estimates assume 2–3 engineers.
 - [x] Fix the adapter response shape in Contracts v1 (`hookSpecificOutput` for Claude Code and Codex, `permission` for Cursor).
 - [ ] `release` Ed25519 key and root key set: who holds and rotates them. Blocks `privometry update`, which ships with no release keys and refuses every update until `internal/update/keys/release-keys.json` exists.
 - [x] Release manifest host: `privometry update` defaults to the GitLab latest-release direct asset `release.json` for `cn-solutions/privometry/privometry-oss`.
-- [ ] Fail-mode defaults per category (needed by M4).
+- [x] Fail-mode defaults per category: catastrophic is closed; secrets and exfiltration ask; unapproved MCP and other actions are open. The shared definition is `contract.DefaultFailModes`.
 - [ ] P1 team size, to firm up estimates.
 - [x] Contracts v1 defines seven event types (`prompt` and `content_finding` were added after the original five-type draft); historical changelog entries retain their original wording.
 - [x] SCAN-02 person-or-agent attribution: classify a change as `agent` within two minutes of an allowed agent write to that path, otherwise `person`. Keep the window configurable in a later release if operational evidence requires it.
