@@ -505,11 +505,12 @@ type ConfigHash struct {
 	PrivometryHook            bool
 	Kind                      string // config or memory; empty means config
 	ChangedBy                 string // memory files: person, agent or "" when unknown
+	ObservedAt                time.Time
 }
 
 // ConfigHashes returns every watched file's last state, by path.
 func (s *Store) ConfigHashes() (map[string]ConfigHash, error) {
-	rows, err := s.db.Query(`SELECT path, tier, agent_product, sha256, privometry_hook, kind, changed_by FROM config_hashes`)
+	rows, err := s.db.Query(`SELECT path, tier, agent_product, sha256, privometry_hook, kind, changed_by, observed_at FROM config_hashes`)
 	if err != nil {
 		return nil, err
 	}
@@ -518,8 +519,13 @@ func (s *Store) ConfigHashes() (map[string]ConfigHash, error) {
 	for rows.Next() {
 		var h ConfigHash
 		var hook int
-		if err := rows.Scan(&h.Path, &h.Tier, &h.Agent, &h.SHA256, &hook, &h.Kind, &h.ChangedBy); err != nil {
+		var observed string
+		if err := rows.Scan(&h.Path, &h.Tier, &h.Agent, &h.SHA256, &hook, &h.Kind, &h.ChangedBy, &observed); err != nil {
 			return nil, err
+		}
+		var err error
+		if h.ObservedAt, err = time.Parse(time.RFC3339Nano, observed); err != nil {
+			return nil, fmt.Errorf("timeline: config hash %q has invalid observed_at: %w", h.Path, err)
 		}
 		h.PrivometryHook = hook != 0
 		out[h.Path] = h

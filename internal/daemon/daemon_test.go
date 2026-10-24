@@ -551,6 +551,33 @@ func TestMemoryFileHashingAndAttribution(t *testing.T) {
 	if n, _ := d.CheckMemory(); n != 0 {
 		t.Errorf("an unchanged file must not be rescanned: %d events", n)
 	}
+	hashes, err := d.Store().ConfigHashes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	firstSeen := hashes[user].ObservedAt
+	now = now.Add(23 * time.Hour)
+	if n, _ := d.CheckMemory(); n != 0 {
+		t.Errorf("an unchanged file was rescanned before 24 hours: %d events", n)
+	}
+	hashes, err = d.Store().ConfigHashes()
+	if err != nil || !hashes[user].ObservedAt.Equal(firstSeen) {
+		t.Fatalf("early check changed persisted scan time: %+v %v", hashes[user], err)
+	}
+	now = now.Add(time.Hour)
+	if n, err := d.CheckMemory(); err != nil || n != 1 {
+		t.Fatalf("daily rescan recorded %d findings: %v", n, err)
+	}
+	if got := len(findings(t, d)); got != 2 {
+		t.Fatalf("daily rescan findings = %d, want 2", got)
+	}
+	if got := len(changes()); got != 0 {
+		t.Fatalf("daily rescan created %d config changes", got)
+	}
+	hashes, err = d.Store().ConfigHashes()
+	if err != nil || !hashes[user].ObservedAt.Equal(now.UTC().Truncate(time.Millisecond)) {
+		t.Fatalf("daily scan time was not persisted: %+v %v", hashes[user], err)
+	}
 
 	// A person edits it outside any agent.
 	write(user, "# Me\nUse tabs.\n")
@@ -607,6 +634,14 @@ func TestMemoryFileHashingAndAttribution(t *testing.T) {
 	fs = findings(t, d)
 	if fs[0].Event.ContentFinding.DetectorID != "privometry/injection:ignore-previous-instructions" || !strings.Contains(fs[0].TargetClear, nested) {
 		t.Errorf("nested write finding %+v %q", fs[0].Event.ContentFinding, fs[0].TargetClear)
+	}
+	beforeDaily := len(fs)
+	now = now.Add(24 * time.Hour)
+	if n, err := d.CheckMemory(); err != nil || n == 0 {
+		t.Fatalf("persisted nested file daily rescan recorded %d findings: %v", n, err)
+	}
+	if got := len(findings(t, d)); got <= beforeDaily {
+		t.Errorf("persisted nested file was not rescanned: %d -> %d", beforeDaily, got)
 	}
 	validEvents(t, d)
 }

@@ -116,6 +116,23 @@ func TestDeviceIDAndSessions(t *testing.T) {
 	}
 }
 
+func TestConfigHashObservedAt(t *testing.T) {
+	s, _ := open(t)
+	at := time.Date(2026, 10, 24, 8, 30, 0, 123456000, time.UTC)
+	h := timeline.ConfigHash{Path: "/repo/CLAUDE.md", Tier: "project", Agent: "claude_code", SHA256: "abc", Kind: "memory"}
+	if err := s.SetConfigHash(h, at); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.ConfigHashes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := contract.At(at).Time
+	if !got[h.Path].ObservedAt.Equal(want) {
+		t.Errorf("observed_at = %s, want %s", got[h.Path].ObservedAt, want)
+	}
+}
+
 func TestPromptPresentation(t *testing.T) {
 	r := timeline.Row{Event: events.Event{Type: events.EventTypePrompt,
 		Prompt: &events.Prompt{Fingerprint: "hmac-sha256:" + strings.Repeat("a", 64), Characters: 12}},
