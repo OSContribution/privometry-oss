@@ -142,6 +142,51 @@ func TestFallback(t *testing.T) {
 	}
 }
 
+func TestCredentialFallback(t *testing.T) {
+	e, dir := env(t)
+	sample := "gh" + "p_" + strings.Repeat("a", 36)
+	payload := func(agent, tool string, input map[string]any) string {
+		m := map[string]any{"session_id": "s", "tool_name": tool, "tool_input": input, "cwd": "/home/dev/work"}
+		if agent == "cursor" {
+			m["conversation_id"] = "c"
+		}
+		b, _ := json.Marshal(m)
+		return string(b)
+	}
+
+	write := payload("claude_code", "Write", map[string]any{"file_path": "/home/dev/work/config.go", "content": "value=" + sample})
+	if out, _ := run(t, e, "claude_code", "PreToolUse", write, 10*time.Millisecond); !strings.Contains(out, `"permissionDecision":"ask"`) {
+		t.Errorf("credential write should ask: %q", out)
+	}
+	if out, _ := run(t, e, "codex_cli", "PreToolUse", write, 10*time.Millisecond); !strings.Contains(out, `"permissionDecision":"deny"`) {
+		t.Errorf("Codex credential write should map ask to deny: %q", out)
+	}
+	mcp := payload("cursor", "MCP:publish", map[string]any{"value": sample})
+	if out, _ := run(t, e, "cursor", "beforeMCPExecution", mcp, 10*time.Millisecond); !strings.Contains(out, `"permission":"ask"`) {
+		t.Errorf("credential in MCP arguments should ask: %q", out)
+	}
+	safe := payload("claude_code", "Write", map[string]any{"file_path": "/home/dev/work/readme.md", "content": "hello"})
+	if out, _ := run(t, e, "claude_code", "PreToolUse", safe, 10*time.Millisecond); out != "" {
+		t.Errorf("ordinary write should remain open: %q", out)
+	}
+
+	raw, err := os.ReadFile(filepath.Join(dir, spoolFile))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(raw), sample) {
+		t.Fatal("credential leaked into fail-mode spool")
+	}
+	line := strings.Split(strings.TrimSpace(string(raw)), "\n")[0]
+	var entry daemon.SpoolEntry
+	if err := json.Unmarshal([]byte(line), &entry); err != nil {
+		t.Fatal(err)
+	}
+	if entry.Event.FailMode.Category != "secrets" || !reflect.DeepEqual(entry.Event.Action.SecretTypes, []string{"github_token"}) {
+		t.Errorf("credential metadata: mode=%+v action=%+v", entry.Event.FailMode, entry.Event.Action)
+	}
+}
+
 func TestDaemonReplyAndTimeout(t *testing.T) {
 	e, dir := env(t)
 	l, err := ipc.Listen(filepath.Join(dir, "privometryd.sock"))
