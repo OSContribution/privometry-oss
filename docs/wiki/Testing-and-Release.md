@@ -34,7 +34,11 @@ Tests that bind local sockets require an execution environment that permits Unix
 
 ## Continuous integration
 
-The CI matrix runs on Linux and macOS and performs `go vet`, race-enabled tests, builds, generated-type checks, deterministic conformance generation, linting, and a GoReleaser snapshot. Separate workflows run CodeQL, JSON syntax checks, SBOM generation, and dependency inventory.
+The native GitLab pipeline in `.gitlab-ci.yml` runs for merge requests, the default branch, tags, and manually started pipelines. It performs formatting and vet checks, verifies generated types and deterministic conformance vectors, runs race-enabled tests with a coverage artifact, builds all binaries, validates the repository policy, and scans repository configuration and memory files. High or critical Privometry findings fail the pipeline; the SARIF report remains downloadable for 30 days even when the security job fails.
+
+The existing GitHub workflows are optional mirrors for downstream users. They run the Linux/macOS test matrix, linting, a GoReleaser snapshot, CodeQL, JSON syntax checks, SBOM generation, and dependency inventory. GitLab remains the canonical project and CI environment.
+
+The Go build and module caches are stored below the CI project directory and keyed per GitLab project. No user configuration or machine-wide agent state is scanned in CI; `--no-machine` limits the security gate to the checked-out repository.
 
 Contract validation in Go is stronger than syntax-only validation: it compiles schemas and checks all positive and negative fixtures.
 

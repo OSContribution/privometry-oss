@@ -1,0 +1,70 @@
+stages:
+  - validate
+  - test
+  - security
+  - build
+
+workflow:
+  rules:
+    - if: '$CI_COMMIT_TAG'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+
+default:
+  image: golang:1.25-bookworm
+  interruptible: true
+  before_script:
+    - go version
+  cache:
+    key: go-$CI_PROJECT_ID
+    paths:
+      - .cache/go-build/
+      - .cache/go-mod/
+
+variables:
+  GOCACHE: $CI_PROJECT_DIR/.cache/go-build
+  GOMODCACHE: $CI_PROJECT_DIR/.cache/go-mod
+  GOTOOLCHAIN: local
+
+validate:
+  stage: validate
+  script:
+    - test -z "$(gofmt -l .)"
+    - go vet ./...
+    - go run ./scripts/gen-types -check
+    - go run ./scripts/gen-conformance
+    - git diff --exit-code -- specs
+
+test:
+  stage: test
+  script:
+    - go test -race -coverprofile=coverage.out ./...
+    - go tool cover -func=coverage.out
+  coverage: '/total:\s+\(statements\)\s+([0-9.]+%)/'
+  artifacts:
+    when: always
+    expire_in: 14 days
+    paths:
+      - coverage.out
+
+repository-security-scan:
+  stage: security
+  script:
+    - go build -trimpath -o bin/privometry ./cmd/privometry
+    - bin/privometry policy test
+    - bin/privometry scan --no-machine --repo . --format sarif --output privometry.sarif --fail-on high
+  artifacts:
+    when: always
+    expire_in: 30 days
+    paths:
+      - privometry.sarif
+
+build:
+  stage: build
+  script:
+    - make build
+  artifacts:
+    expire_in: 14 days
+    paths:
+      - bin/
