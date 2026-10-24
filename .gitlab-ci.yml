@@ -60,6 +60,17 @@ repository-security-scan:
     paths:
       - privometry.sarif
 
+release-compliance:
+  stage: security
+  script:
+    - go run ./scripts/release-metadata -version "$CI_COMMIT_REF_NAME"
+  artifacts:
+    when: always
+    expire_in: 30 days
+    paths:
+      - privometry.cdx.json
+      - dependency-licenses.json
+
 build:
   stage: build
   script:

@@ -75,3 +75,4 @@ Week estimates assume 2–3 engineers.
 - [x] Local capture set to `redacted` (Database design v1): the daemon applies it at the persistence boundary, including spool imports.
 - [x] Rename the credential detector pack to `privometry/credentials`; the rule pack remains `privometry/secrets`, making their separate namespaces explicit before publication.
 - [x] Native GitLab CI foundation: validation, race tests and coverage, repository-only policy/content scanning with a high-severity gate and retained SARIF, and release-binary builds. Production release publishing, package feeds, SBOM, and signing remain in M7.
+- [x] Deterministic CycloneDX SBOM and dependency-license policy report, enforced in GitLab CI and included in every release archive.
