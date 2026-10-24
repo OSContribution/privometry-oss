@@ -17,7 +17,7 @@ Privometry observes security-sensitive agent activity. Its design minimizes coll
 
 Potentially sensitive inputs include commands, arguments, paths, repository identities, MCP arguments and results, file content, prompts, agent responses, configuration, and environment metadata.
 
-Before persistence or upload, the edge applies redaction and normalization. Events use privacy levels and carry masked excerpts, classifications, or keyed fingerprints where correlation is needed. Integrations must not add debug logging that bypasses the redaction boundary.
+Before persistence or upload, the edge applies redaction and normalization. Local timeline targets are redacted at the database boundary by default, including fallback-spool imports. Events use privacy levels and carry masked excerpts, classifications, or keyed fingerprints where correlation is needed. Integrations must not add debug logging that bypasses the redaction boundary.
 
 ## Local storage
 

@@ -166,7 +166,8 @@ func (s *Store) DeviceID() (string, error) {
 
 // Append assigns the event the next device_seq and stores it in one
 // transaction, so the sequence has no gaps unless rows are deleted.
-// targetClear is the unredacted target, which never leaves the device.
+// targetClear is the local presentation target after the daemon has applied
+// its local-capture policy. It never leaves the device.
 func (s *Store) Append(ev *events.Event, targetClear string) error {
 	tx, err := s.db.Begin()
 	if err != nil {

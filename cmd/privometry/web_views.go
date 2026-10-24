@@ -161,7 +161,7 @@ func policyView(env platform.Env) (any, error) {
 func deviceView(env platform.Env) any {
 	host, _ := os.Hostname()
 	out := map[string]any{"host": host, "user": localUserName(), "os": osName(env), "arch": runtime.GOARCH,
-		"version": buildinfo.Version, "retention_days": 30, "capture": "full"}
+		"version": buildinfo.Version, "retention_days": 30, "capture": "redacted"}
 	if dir, err := env.DataDir(); err == nil {
 		out["data_dir"] = discover.Display(dir, env.Home, "")
 		if info, err := os.Stat(filepath.Join(dir, "privometry.db")); err == nil {

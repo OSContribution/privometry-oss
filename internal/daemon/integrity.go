@@ -213,7 +213,7 @@ func (d *Daemon) recordConfigChangeBy(w watched, before, after string, by events
 		OccurredAt: contract.At(d.cfg.Now()), Device: d.device, User: events.User{LocalUser: localUser()},
 		Agent:  &events.Agent{Product: w.agent.Agent, SessionID: d.watcherSession(w.agent.Agent), NativeSessionID: "privometry-file-watcher"},
 		Config: cfg, Redaction: map[string]contract.PrivacyLevel{"config.path": contract.PrivacyLevelRedacted, "user.local_user": contract.PrivacyLevelClear}}
-	return d.store.Append(ev, w.path)
+	return d.appendEvent(ev, w.path)
 }
 
 func (d *Daemon) recordIntegrity(w watched, check, before, after string) error {
@@ -233,5 +233,5 @@ func (d *Daemon) recordIntegrity(w watched, check, before, after string) error {
 		OccurredAt: contract.At(d.cfg.Now()), Device: d.device, User: events.User{LocalUser: localUser()}, Integrity: in,
 		Redaction: map[string]contract.PrivacyLevel{"integrity.path": contract.PrivacyLevelRedacted, "user.local_user": contract.PrivacyLevelClear}}
 	d.cfg.Logger.Warn("integrity alert", "agent", w.agent.Agent, "check", check, "path", w.path)
-	return d.store.Append(ev, w.path)
+	return d.appendEvent(ev, w.path)
 }

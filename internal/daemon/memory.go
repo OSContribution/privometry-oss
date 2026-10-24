@@ -249,7 +249,7 @@ func (d *Daemon) scanAtRest(m memoryFile, raw []byte) int {
 			OccurredAt: contract.At(d.cfg.Now()), Device: d.device, User: events.User{LocalUser: localUser()}, ContentFinding: cf,
 			Redaction: map[string]contract.PrivacyLevel{"user.local_user": contract.PrivacyLevelClear},
 			Ext:       map[string]any{"x_privometry_title": f.Title}}
-		if err := d.store.Append(ev, fmt.Sprintf("%s:%d  %s", m.path, f.Line, f.Excerpt)); err != nil {
+		if err := d.appendEvent(ev, fmt.Sprintf("%s:%d  %s", m.path, f.Line, f.Excerpt)); err != nil {
 			d.cfg.Logger.Warn("could not record content finding", "err", err)
 			continue
 		}

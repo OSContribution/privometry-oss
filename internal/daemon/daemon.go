@@ -28,6 +28,7 @@ import (
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/policy"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/policy/merge"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/policy/rulepack"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/redact"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/timeline"
 )
 
@@ -47,6 +48,20 @@ type Config struct {
 	Detectors []*content.Pack
 	Logger    *slog.Logger
 	Now       func() time.Time // nil means time.Now
+	// LocalCapture controls target_clear in the local timeline. Empty defaults
+	// to redacted; clear is retained for explicitly configured deployments.
+	LocalCapture contract.PrivacyLevel
+}
+
+// appendEvent applies the local persistence boundary before data reaches
+// SQLite. The event payload is already redacted for upload; targetClear is
+// additionally redacted here so every producer, including spool import, uses
+// the same local-capture policy.
+func (d *Daemon) appendEvent(ev *events.Event, targetClear string) error {
+	if d.cfg.LocalCapture != contract.PrivacyLevelClear {
+		targetClear = redact.Redact(targetClear, redact.Context{Home: d.cfg.Env.Home})
+	}
+	return d.store.Append(ev, targetClear)
 }
 
 // Daemon answers hook calls.
