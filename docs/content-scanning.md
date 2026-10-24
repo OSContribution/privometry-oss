@@ -108,7 +108,7 @@ On the development Mac this found 33 Claude Code memory files. The first run rai
 ## Still to do
 
 - Claude Code's `InstructionsLoaded` hook scans each loaded `CLAUDE.md` or rule file immediately, including nested files that are not discoverable from the workspace root. Unchanged files are deduplicated by content hash.
-- The hook client's fail-mode path (daemon down) does not detect credentials yet.
+- When the daemon is unavailable, the small hook client uses the credential recognizers shared with redaction on commands, URLs, write content and MCP arguments. It applies the configured `secrets` fail mode without loading detector packs or Cedar, records credential kinds but never values, and redacts credentials before writing its temporary spool.
 - Memory files are not rescanned daily when unchanged, so a new detector pack version only applies to files that change; snapshots and rollback are P2 (SCAN-14).
 - Content agents read is scanned for injection (SCAN-12, a P2 Should) but with phrasing heuristics: security docs that discuss prompt injection without quoting it can still mark a session.
 - Detector packs are embedded only; signed distribution and per-repo allowlists (SCAN-09) come with the pack signing work.

@@ -120,6 +120,7 @@ func fallback(agent, event string, payload []byte, reason string, start time.Tim
 	var p map[string]any
 	_ = json.Unmarshal(payload, &p)
 	action, native := actionOf(agent, event, p)
+	secretKinds := redact.SecretKinds(credentialText(action, p))
 	cwd := str(p["cwd"])
 	if cwd == "" {
 		cwd = opts.Env.Home
@@ -129,6 +130,9 @@ func fallback(agent, event string, payload []byte, reason string, start time.Tim
 
 	category, mode := "other", modes["other"]
 	risk := "none"
+	if len(secretKinds) > 0 && failStrength[modes["secrets"]] > failStrength[mode] {
+		category, mode = "secrets", modes["secrets"]
+	}
 	for _, r := range intent.Extract(action, ctx) {
 		c := categoryOf(r)
 		if m := modes[c]; failStrength[m] > failStrength[mode] {
@@ -147,7 +151,7 @@ func fallback(agent, event string, payload []byte, reason string, start time.Tim
 	if verdict != "" {
 		io.WriteString(stdout, reply(f.style, event, verdict, message))
 	}
-	spool(opts, agent, native, action, risk, category, mode, reason, opts.Now().Sub(start))
+	spool(opts, agent, native, action, secretKinds, risk, category, mode, reason, opts.Now().Sub(start))
 	return 0
 }
 
@@ -196,6 +200,8 @@ func actionOf(agent, event string, p map[string]any) (intent.Action, string) {
 		return intent.Action{Kind: "file_read", Path: str(in["file_path"])}, native
 	case tool == "Write" || tool == "Edit" || tool == "NotebookEdit":
 		return intent.Action{Kind: "file_write", Path: str(in["file_path"])}, native
+	case tool == "apply_patch":
+		return intent.Action{Kind: "file_write"}, native
 	case tool == "Delete":
 		return intent.Action{Kind: "file_delete", Path: str(in["file_path"])}, native
 	case tool == "WebFetch":
@@ -204,6 +210,60 @@ func actionOf(agent, event string, p map[string]any) (intent.Action, string) {
 		return intent.Action{Kind: "mcp_call", MCPTool: tool}, native
 	}
 	return intent.Action{Kind: "other"}, native
+}
+
+// credentialText returns only the fields that can leave the agent or be
+// written by it. The fallback path deliberately reuses redact's small,
+// compiled credential recognizers instead of loading detector packs, YAML or
+// the policy engine into the latency-sensitive hook client.
+func credentialText(a intent.Action, p map[string]any) string {
+	switch a.Kind {
+	case "shell_exec":
+		return a.Command
+	case "network_fetch":
+		return a.URL
+	}
+	in, _ := p["tool_input"].(map[string]any)
+	switch a.Kind {
+	case "mcp_call":
+		return flatten(in)
+	case "file_write":
+		for _, key := range []string{"content", "new_string", "new_source", "command"} {
+			if value := flatten(in[key]); value != "" {
+				return key + ": " + value
+			}
+		}
+	}
+	return ""
+}
+
+// flatten preserves object keys so a generic field such as api_key is still
+// recognized even when its value has no provider-specific prefix.
+func flatten(v any) string {
+	var b strings.Builder
+	var walk func(string, any)
+	walk = func(key string, value any) {
+		prefix := ""
+		if key != "" {
+			prefix = key + ": "
+		}
+		switch x := value.(type) {
+		case string:
+			b.WriteString(prefix)
+			b.WriteString(x)
+			b.WriteByte('\n')
+		case map[string]any:
+			for k, item := range x {
+				walk(k, item)
+			}
+		case []any:
+			for _, item := range x {
+				walk(key, item)
+			}
+		}
+	}
+	walk("", v)
+	return b.String()
 }
 
 func str(v any) string {
@@ -252,7 +312,7 @@ func loadFailModes(env platform.Env) map[string]string {
 
 // spool appends a fail_mode event for the daemon to import. Failures are
 // ignored: recording must never block the agent.
-func spool(opts Options, agent, native string, a intent.Action, risk, category, mode, reason string, elapsed time.Duration) {
+func spool(opts Options, agent, native string, a intent.Action, secretKinds []string, risk, category, mode, reason string, elapsed time.Duration) {
 	dir, err := opts.Env.DataDir()
 	if err != nil || os.MkdirAll(dir, 0o700) != nil {
 		return
@@ -261,8 +321,9 @@ func spool(opts Options, agent, native string, a intent.Action, risk, category, 
 	ev := events.Event{
 		Schema: events.EventSchema, EventID: contract.NewID("evt"), Type: events.EventTypeFailMode,
 		OccurredAt: contract.At(opts.Now()), User: events.User{LocalUser: os.Getenv("USER")},
-		Agent:  &events.Agent{Product: contract.AgentProduct(agent), NativeSessionID: native},
-		Action: &events.Action{Kind: contract.ActionKind(a.Kind), Target: redact.Redact(target, redact.Context{Home: opts.Env.Home}), Risk: contract.Risk(orNone(risk))},
+		Agent: &events.Agent{Product: contract.AgentProduct(agent), NativeSessionID: native},
+		Action: &events.Action{Kind: contract.ActionKind(a.Kind), Target: redact.Redact(target, redact.Context{Home: opts.Env.Home}),
+			Risk: contract.Risk(orNone(risk)), SecretTypes: secretKinds},
 		FailMode: &events.FailMode{Reason: events.FailModeReason(reason), Category: contract.RuleCategory(category),
 			Mode: contract.FailMode(mode), EvaluatedBy: events.FailModeEvaluatedByHookClient, ElapsedMs: ptr(float64(elapsed.Microseconds()) / 1000)},
 		Redaction: map[string]contract.PrivacyLevel{"action.target": contract.PrivacyLevelRedacted, "user.local_user": contract.PrivacyLevelClear},
@@ -270,7 +331,10 @@ func spool(opts Options, agent, native string, a intent.Action, risk, category, 
 	if ev.User.LocalUser == "" {
 		ev.User.LocalUser = "unknown"
 	}
-	line, err := json.Marshal(map[string]any{"event": ev, "target_clear": target})
+	// The daemon normally owns the local clear-text column. During an outage,
+	// keep credentials out of the temporary spool as well.
+	localTarget := redact.Secrets(target, opts.Env.Home)
+	line, err := json.Marshal(map[string]any{"event": ev, "target_clear": localTarget})
 	if err != nil {
 		return
 	}
