@@ -54,3 +54,31 @@ func TestMCPServerPointerWildcard(t *testing.T) {
 		t.Errorf("private pointer leaked in JSON: %s", raw)
 	}
 }
+
+func TestInstalledPlugins(t *testing.T) {
+	d := discoverer{}
+	cf := &ConfigFile{Tier: contract.ConfigTierUser, Path: "~/.claude/plugins/installed_plugins.json", Doc: map[string]any{
+		"version": float64(2),
+		"plugins": map[string]any{
+			"swift-lsp@claude-plugins-official": []any{map[string]any{
+				"scope": "user", "version": "1.0.0", "installPath": "/private/plugin/cache/swift-lsp",
+			}},
+		},
+	}}
+	plugins := d.plugins(cf)
+	if len(plugins) != 1 {
+		t.Fatalf("plugins = %+v", plugins)
+	}
+	p := plugins[0]
+	if p.ID != "swift-lsp@claude-plugins-official" || p.Name != "swift-lsp" ||
+		p.Marketplace != "claude-plugins-official" || p.Version != "1.0.0" || p.Scope != "user" {
+		t.Errorf("plugin = %+v", p)
+	}
+	raw, err := json.Marshal(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(raw), "installPath") || strings.Contains(string(raw), "/private/plugin") {
+		t.Errorf("installation path leaked in JSON: %s", raw)
+	}
+}
