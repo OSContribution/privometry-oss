@@ -78,7 +78,7 @@ Measured on an M-series Mac, all 32 shipped detectors on 64 KB:
 
 **Memory files** (SCAN-02) are hashed every minute with the other watched files: user and managed memory files of every agent, and the project files at the root of each workspace an agent worked in during the last 24 hours. A file seen for the first time is scanned (`source: memory_file`); a changed one records a `config_change` event with `holds` `instructions`, `rules` or `memory` and `changed_by`:
 
-- `agent` when an agent session was allowed to write that file through a hooked tool less than two minutes earlier, or when the agent's own `PostToolUse` reports the write (checked at once, which also covers nested files the watcher does not list);
+- `agent` when an agent session was allowed to write that file through a hooked tool less than two minutes earlier, or when the agent's own `PostToolUse` reports the write (checked at once, which also covers nested files the watcher does not list). The two-minute window is the confirmed P1 default and can be revisited if operational evidence shows false attribution;
 - `person` otherwise.
 
 The new content is scanned again and its findings recorded.
