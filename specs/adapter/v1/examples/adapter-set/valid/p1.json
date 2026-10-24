@@ -21,6 +21,18 @@
         {
           "format": "json",
           "holds": [
+            "plugins"
+          ],
+          "paths": {
+            "any": [
+              "~/.claude/plugins/installed_plugins.json"
+            ]
+          },
+          "tier": "user"
+        },
+        {
+          "format": "json",
+          "holds": [
             "settings",
             "permissions",
             "hooks",

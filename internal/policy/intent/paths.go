@@ -106,7 +106,7 @@ func (c Context) isTemp(p string) bool {
 
 // agentConfigRE matches files that make an agent or git run commands later:
 // writing them is a persistence technique.
-var agentConfigRE = regexp.MustCompile(`(^|/)(\.claude/settings(\.local)?\.json|\.claude\.json|\.mcp\.json|\.cursor/(hooks|mcp)\.json|\.codex/(config\.toml|hooks\.json)|\.git/hooks/[^/]+|\.privometry/policy\.yaml|\.vscode/(settings|tasks)\.json|\.(bash|zsh)rc|\.profile|\.bash_profile|\.zprofile)$`)
+var agentConfigRE = regexp.MustCompile(`(^|/)(\.claude/settings(\.local)?\.json|\.claude/plugins/installed_plugins\.json|\.claude\.json|\.mcp\.json|\.cursor/(hooks|mcp)\.json|\.codex/(config\.toml|hooks\.json)|\.git/hooks/[^/]+|\.privometry/policy\.yaml|\.vscode/(settings|tasks)\.json|\.(bash|zsh)rc|\.profile|\.bash_profile|\.zprofile)$`)
 
 // memoryFileRE matches files agents load as standing instructions or memory:
 // every memory_files path in adapter-defs (a test keeps them in step), plus
@@ -117,7 +117,7 @@ var memoryFileRE = regexp.MustCompile(`(^|/)(CLAUDE(\.local)?\.md|AGENTS(\.overr
 
 // agentFileRE matches agent settings, hook and MCP files, skills and Privometry's
 // own policy: every config_tiers and mcp_sources path in adapter-defs.
-var agentFileRE = regexp.MustCompile(`(^|/)(\.claude/settings(\.local)?\.json|managed-settings(\.d/[^/]+)?\.json|\.claude\.json|\.mcp\.json|` +
+var agentFileRE = regexp.MustCompile(`(^|/)(\.claude/settings(\.local)?\.json|\.claude/plugins/installed_plugins\.json|managed-settings(\.d/[^/]+)?\.json|\.claude\.json|\.mcp\.json|` +
 	`\.claude/skills/([^/]+/){1,3}SKILL\.md|\.cursor/(hooks|mcp|cli-config)\.json|hooks\.json|` +
 	`\.codex/(config\.toml|hooks\.json)|requirements\.toml|\.codex/rules/[^/]+\.rules|\.privometry/policy\.yaml)$`)
 

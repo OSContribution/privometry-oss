@@ -59,6 +59,7 @@ type Agent struct {
 	MCPServers  []MCPServer           `json:"mcp_servers"`
 	Hooks       []Hook                `json:"hooks"`
 	Skills      []Skill               `json:"skills"`
+	Plugins     []Plugin              `json:"plugins"`
 	MemoryFiles []MemoryFile          `json:"memory_files"`
 	VersionNote string                `json:"version_note,omitempty"`
 }
@@ -124,6 +125,18 @@ type Skill struct {
 	Description string              `json:"description,omitempty"`
 }
 
+// Plugin is one installed agent plugin. Installation paths and registry
+// metadata are deliberately omitted from reports.
+type Plugin struct {
+	ID          string              `json:"id"`
+	Name        string              `json:"name"`
+	Marketplace string              `json:"marketplace,omitempty"`
+	Version     string              `json:"version,omitempty"`
+	Scope       string              `json:"scope,omitempty"`
+	Tier        contract.ConfigTier `json:"tier"`
+	Path        string              `json:"path"`
+}
+
 // Run discovers every agent in reg.
 func Run(reg *registry.Registry, opts Options) ([]Agent, error) {
 	if opts.LookPath == nil {
@@ -174,7 +187,7 @@ func (d *discoverer) wantTier(t contract.ConfigTier) bool {
 
 func (d *discoverer) agent(a registry.Adapter) (Agent, error) {
 	agent := Agent{Product: a.Agent, Name: a.DisplayName, Evidence: []string{}, Configs: []ConfigFile{},
-		MCPServers: []MCPServer{}, Hooks: []Hook{}, Skills: []Skill{}, MemoryFiles: []MemoryFile{}}
+		MCPServers: []MCPServer{}, Hooks: []Hook{}, Skills: []Skill{}, Plugins: []Plugin{}, MemoryFiles: []MemoryFile{}}
 	if d.opts.Machine {
 		d.detect(a, &agent)
 	}
@@ -201,6 +214,9 @@ func (d *discoverer) agent(a registry.Adapter) (Agent, error) {
 				fm := parsers.Map(cf.Doc)
 				agent.Skills = append(agent.Skills, Skill{Tier: cf.Tier, Path: cf.Path,
 					Name: parsers.String(fm["name"]), Description: parsers.String(fm["description"])})
+			}
+			if slices.Contains(holds, "plugins") && cf.Doc != nil {
+				agent.Plugins = append(agent.Plugins, d.plugins(cf)...)
 			}
 		}
 	}
@@ -520,6 +536,31 @@ func (d *discoverer) mcpServers(cf *ConfigFile, pointer string) []MCPServer {
 	return out
 }
 
+// plugins reads Claude Code's version 2 installed-plugin registry. Unknown
+// fields are ignored, and installPath is never retained or reported.
+func (d *discoverer) plugins(cf *ConfigFile) []Plugin {
+	registry := parsers.Map(parsers.Map(cf.Doc)["plugins"])
+	ids := make([]string, 0, len(registry))
+	for id := range registry {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	var out []Plugin
+	for _, id := range ids {
+		name, marketplace := id, ""
+		if at := strings.LastIndex(id, "@"); at > 0 {
+			name, marketplace = id[:at], id[at+1:]
+		}
+		for _, raw := range parsers.List(registry[id]) {
+			entry := parsers.Map(raw)
+			out = append(out, Plugin{ID: id, Name: name, Marketplace: marketplace,
+				Version: parsers.String(entry["version"]), Scope: parsers.String(entry["scope"]),
+				Tier: cf.Tier, Path: cf.Path})
+		}
+	}
+	return out
+}
+
 type pointerMap struct {
 	pointer    string
 	rawPointer string
@@ -666,6 +707,12 @@ func sortAgent(a *Agent) {
 			return tierOrder(a.Configs[i].Tier) < tierOrder(a.Configs[j].Tier)
 		}
 		return a.Configs[i].Path < a.Configs[j].Path
+	})
+	sort.SliceStable(a.Plugins, func(i, j int) bool {
+		if a.Plugins[i].ID != a.Plugins[j].ID {
+			return a.Plugins[i].ID < a.Plugins[j].ID
+		}
+		return a.Plugins[i].Scope < a.Plugins[j].Scope
 	})
 }
 

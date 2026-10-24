@@ -55,10 +55,10 @@ func Table(w io.Writer, res *scanner.Result) error {
 		return nil
 	}
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(tw, "AGENT\tVERSION\tSUPPORTED\tPRIVOMETRY HOOK\tCONFIG FILES\tMCP SERVERS\tSKILLS\tMEMORY FILES")
+	fmt.Fprintln(tw, "AGENT\tVERSION\tSUPPORTED\tPRIVOMETRY HOOK\tCONFIG FILES\tMCP SERVERS\tSKILLS\tPLUGINS\tMEMORY FILES")
 	for _, a := range res.Agents {
-		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%d\t%d\t%d\t%d\n", a.Name, orDash(a.Version), supported(a), hooked(a),
-			configCount(a), len(a.MCPServers), len(a.Skills), len(a.MemoryFiles))
+		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%d\t%d\t%d\t%d\t%d\n", a.Name, orDash(a.Version), supported(a), hooked(a),
+			configCount(a), len(a.MCPServers), len(a.Skills), len(a.Plugins), len(a.MemoryFiles))
 	}
 	tw.Flush()
 	for _, a := range res.Agents {

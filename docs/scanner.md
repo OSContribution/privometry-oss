@@ -1,6 +1,6 @@
 # privometry scan
 
-Finds coding agents, their running processes, config files, MCP servers, hooks and skills, and flags risky settings. It only reads: no file is changed. Process enumeration and each agent's version command have a 3-second timeout.
+Finds coding agents, their running processes, config files, MCP servers, hooks, skills and installed plugins, and flags risky settings. It only reads: no file is changed. Process enumeration and each agent's version command have a 3-second timeout.
 
 ```bash
 privometry scan                                   # this machine, plus the git repo you are in
@@ -21,7 +21,7 @@ Exit codes: 0 success, 1 a finding at or above `--fail-on`, 2 usage or runtime e
 
 ## What it reads
 
-Everything comes from the adapter definitions in `adapter-defs/` (Claude Code, Cursor, Codex CLI): binaries, process names and app bundles to detect, config files per tier (user, project, managed) and OS, MCP server locations, and which posture checks apply. Process detection compares executable names only; command lines and PIDs are never retained. Formats: JSON, JSON with comments, TOML, YAML, and frontmatter in `SKILL.md` and `.mdc` files. Desktop apps that ship an agent's engine are found by that binary: the Codex desktop app is the engine inside `/Applications/ChatGPT.app`, which also answers the version check when the `codex` on PATH is missing or broken. It also lists each agent's memory and instruction files (`memory_files`: `CLAUDE.md`, `AGENTS.md`, rules folders, automatic memory), including nested ones in the repo.
+Everything comes from the adapter definitions in `adapter-defs/` (Claude Code, Cursor, Codex CLI): binaries, process names and app bundles to detect, config files per tier (user, project, managed) and OS, MCP server locations, and which posture checks apply. Process detection compares executable names only; command lines and PIDs are never retained. Formats: JSON, JSON with comments, TOML, YAML, and frontmatter in `SKILL.md` and `.mdc` files. Desktop apps that ship an agent's engine are found by that binary: the Codex desktop app is the engine inside `/Applications/ChatGPT.app`, which also answers the version check when the `codex` on PATH is missing or broken. Claude Code's installed-plugin registry contributes plugin ID, marketplace, version and scope; installation paths are discarded. It also lists each agent's memory and instruction files (`memory_files`: `CLAUDE.md`, `AGENTS.md`, rules folders, automatic memory), including nested ones in the repo.
 
 ## Checks
 
@@ -52,7 +52,6 @@ Reports never contain secret values. Commands and URLs pass through the same red
 
 ## Known gaps
 
-- Claude Code plugins are not listed yet.
 - Cursor's IDE auto-run setting lives in the app's state database; only `~/.cursor/cli-config.json` is checked.
 - Cursor and Codex definitions are based on documentation; Claude Code is verified against recorded fixtures.
 - Windows paths are defined but untested (Windows support is P2). Gemini CLI and Copilot adapters arrive in P2.
