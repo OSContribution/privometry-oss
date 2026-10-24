@@ -1,4 +1,4 @@
-# privometry/secrets detector pack
+# privometry/credentials detector pack
 
 Finds credentials in what agents send and write and in files at rest: provider tokens and keys, private keys, JWTs, passwords in connection strings, bearer tokens, and random values assigned to secret-named variables.
 

@@ -1,6 +1,6 @@
 schema: privometry.detectors/v1
 detectors:
-  - id: privometry/secrets:aws-key
+  - id: privometry/credentials:aws-key
     title: AWS key
     category: credential
     kind: pattern

@@ -489,7 +489,7 @@ type Prompt struct {
 // A content detector fired. Never carries the matched value or the text around
 // it; the local timeline keeps a masked excerpt on the device only.
 type ContentFinding struct {
-	// <pack>:<name>, for example privometry/secrets:github-token.
+	// <pack>:<name>, for example privometry/credentials:github-token.
 	DetectorID  string                   `json:"detector_id"`
 	PackVersion string                   `json:"pack_version,omitempty"`
 	Category    ContentFindingCategory   `json:"category"`

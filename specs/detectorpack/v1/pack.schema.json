@@ -23,7 +23,7 @@
       "type": "string",
       "pattern": "^[a-z0-9]+(-[a-z0-9]+)*/[a-z0-9]+(-[a-z0-9]+)*$",
       "maxLength": 100,
-      "description": "<publisher>/<name>, for example privometry/secrets. Detectors are referenced as <id>:<detector-id> in content_finding.detector_id. Detector pack IDs are a separate namespace from rule pack IDs."
+      "description": "<publisher>/<name>, for example privometry/credentials. Detectors are referenced as <id>:<detector-id> in content_finding.detector_id."
     },
     "version": {
       "$ref": "../../common/v1/common.schema.json#/$defs/semver",

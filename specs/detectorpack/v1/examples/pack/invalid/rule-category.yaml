@@ -1,5 +1,5 @@
 schema: privometry.detectorpack/v1
-id: privometry/secrets
+id: privometry/credentials
 version: 1.0.0
 title: Credentials
 description: Uses a rule category instead of a content category.

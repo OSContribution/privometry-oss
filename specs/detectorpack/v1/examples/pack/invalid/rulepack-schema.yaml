@@ -1,5 +1,5 @@
 schema: privometry.rulepack/v1
-id: privometry/secrets
+id: privometry/credentials
 version: 1.0.0
 title: Credentials
 description: A rule pack manifest is not a detector pack manifest.

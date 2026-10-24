@@ -872,7 +872,7 @@
           "type": "string",
           "pattern": "^[a-z0-9][a-z0-9-]*/[a-z0-9][a-z0-9-]*:[a-z0-9][a-z0-9-]*$",
           "maxLength": 128,
-          "description": "<pack>:<name>, for example privometry/secrets:github-token."
+          "description": "<pack>:<name>, for example privometry/credentials:github-token."
         },
         "pack_version": {
           "$ref": "../../common/v1/common.schema.json#/$defs/semver"

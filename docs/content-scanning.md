@@ -41,13 +41,13 @@ The extractors set `target_class` for every file an action touches: `memory_file
 
 | Pack | Detectors | Finds |
 |---|---|---|
-| `privometry/secrets` 1.0.0 | 18 | AWS, GitHub, GitLab, Slack, Stripe, OpenAI, Anthropic, Google, GCP service account and npm credentials, private keys, JWTs, passwords in connection strings, bearer tokens, random values assigned to secret-named variables |
+| `privometry/credentials` 1.0.0 | 18 | AWS, GitHub, GitLab, Slack, Stripe, OpenAI, Anthropic, Google, GCP service account and npm credentials, private keys, JWTs, passwords in connection strings, bearer tokens, random values assigned to secret-named variables |
 | `privometry/injection` 1.0.0 | 8 | Ignore-previous-instructions, fake system messages, hide-from-user, skip-approvals, disable-protection, download-and-run, send-secrets-out, data in image URLs |
 | `privometry/hidden-content` 1.0.0 | 6 | Invisible and direction-changing characters, Unicode tag text, variation-selector runs, private-use characters, instructions in HTML comments, encoded instructions, text pushed off-screen |
 
 Each detector has `samples.match` and `samples.no_match`; `content.Check` (run by `detectorpacks/detectorpacks_test.go`) requires every detector to fire on each match sample and stay quiet on each other one, for every source it applies to. Sample credentials are split with `{{}}` so secret scanners never see a contiguous token. Known example values (AWS's documented keys) are in `allow` lists.
 
-Detector pack IDs are their own namespace: `privometry/secrets` is both a rule pack (what to do) and a detector pack (what to find).
+Detector and rule packs have separate namespaces, and their names make the distinction explicit: `privometry/credentials` detects credential material, while the `privometry/secrets` rule pack decides what to do with secret-related actions.
 
 ## The engine
 
