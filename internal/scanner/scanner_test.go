@@ -56,6 +56,9 @@ func fixture(t *testing.T, machine bool, repo bool) discover.Options {
 			}
 			return "", errors.New("unexpected command")
 		},
+		ListProcesses: func() ([]string, error) {
+			return []string{"/opt/Cursor.app/Contents/MacOS/Cursor"}, nil
+		},
 	}
 	if repo {
 		opts.RepoRoot = "/home/dev/work/api"
@@ -90,8 +93,8 @@ func TestMachineAndRepo(t *testing.T) {
 	if codex.Version != "0.13.0" || codex.Supported == nil || *codex.Supported {
 		t.Errorf("codex 0.13.0 must be unsupported (range starts at 0.14.0): %+v", codex.Supported)
 	}
-	if !cursor.Installed || cursor.Version != "" {
-		t.Errorf("cursor is installed by config only: installed %v version %q", cursor.Installed, cursor.Version)
+	if !cursor.Installed || cursor.Version != "" || !slices.Contains(cursor.Evidence, "process Cursor") {
+		t.Errorf("cursor process was not detected: installed %v version %q evidence %v", cursor.Installed, cursor.Version, cursor.Evidence)
 	}
 
 	servers := map[string]discover.MCPServer{}
@@ -248,6 +251,38 @@ func TestRepoOnly(t *testing.T) {
 		if r.Level != "warning" {
 			t.Errorf("%s level %s, want warning", r.RuleID, r.Level)
 		}
+	}
+}
+
+func TestProcessOnlyDetection(t *testing.T) {
+	reg, err := registry.Load(adapterdefs.FS)
+	if err != nil {
+		t.Fatal(err)
+	}
+	calls := 0
+	agents, err := discover.Run(reg, discover.Options{
+		Env:     platform.Env{GOOS: "linux", Home: "/home/dev", Getenv: func(string) string { return "" }},
+		Machine: true,
+		Root:    t.TempDir(),
+		LookPath: func(string) (string, error) {
+			return "", exec.ErrNotFound
+		},
+		ListProcesses: func() ([]string, error) {
+			calls++
+			return []string{"/usr/local/bin/claude"}, nil
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if calls != 1 {
+		t.Fatalf("process list called %d times, want once", calls)
+	}
+	if len(agents) != 1 || agents[0].Product != contract.AgentProductClaudeCode || !agents[0].Installed {
+		t.Fatalf("process-only agents = %+v", agents)
+	}
+	if !slices.Equal(agents[0].Evidence, []string{"process claude"}) {
+		t.Errorf("evidence = %v", agents[0].Evidence)
 	}
 }
 

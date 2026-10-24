@@ -7,6 +7,7 @@ package discover
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/csv"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -15,6 +16,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"slices"
 	"sort"
 	"strings"
@@ -40,6 +42,9 @@ type Options struct {
 	LookPath func(string) (string, error)
 	// RunVersion runs a version command; nil runs it with a 3-second timeout.
 	RunVersion func(argv []string) (string, error)
+	// ListProcesses returns executable names for running processes. It is best
+	// effort: discovery continues when the operating system refuses the query.
+	ListProcesses func() ([]string, error)
 }
 
 // Agent is everything found for one coding agent.
@@ -124,7 +129,19 @@ func Run(reg *registry.Registry, opts Options) ([]Agent, error) {
 	if opts.RunVersion == nil {
 		opts.RunVersion = runVersion
 	}
-	d := &discoverer{opts: opts, parsed: map[string]*ConfigFile{}}
+	if opts.ListProcesses == nil {
+		opts.ListProcesses = listProcesses
+	}
+	d := &discoverer{opts: opts, parsed: map[string]*ConfigFile{}, processes: map[string]bool{}}
+	if opts.Machine {
+		if names, err := opts.ListProcesses(); err == nil {
+			for _, name := range names {
+				if key := processKey(name); key != "" {
+					d.processes[key] = true
+				}
+			}
+		}
+	}
 	var agents []Agent
 	for _, a := range reg.All() {
 		agent, err := d.agent(a)
@@ -139,9 +156,10 @@ func Run(reg *registry.Registry, opts Options) ([]Agent, error) {
 }
 
 type discoverer struct {
-	opts   Options
-	parsed map[string]*ConfigFile // by real path, so a file shared by tiers is parsed once
-	dirs   []string               // the repo's folders, for nested memory files; walked once
+	opts      Options
+	parsed    map[string]*ConfigFile // by real path, so a file shared by tiers is parsed once
+	dirs      []string               // the repo's folders, for nested memory files; walked once
+	processes map[string]bool        // normalized executable names, read once per scan
 }
 
 func (d *discoverer) wantTier(t contract.ConfigTier) bool {
@@ -236,10 +254,19 @@ func (d *discoverer) agent(a registry.Adapter) (Agent, error) {
 	return agent, nil
 }
 
-// detect looks for the agent's binary, its desktop app and the binary inside
-// that app, and reads the version from the first binary that answers.
+// detect looks for a running process, the agent's binary, its desktop app and
+// the binary inside that app, and reads the version from the first binary that
+// answers. Process evidence contains only the adapter's public process name,
+// never a PID or command line.
 func (d *discoverer) detect(a registry.Adapter, agent *Agent) {
 	var candidates []string // binaries to ask for the version, in order
+	for _, name := range a.Detect.Processes {
+		if d.processes[processKey(name)] {
+			agent.Installed = true
+			agent.Evidence = append(agent.Evidence, "process "+name)
+			break
+		}
+	}
 	for _, b := range a.Detect.Binaries {
 		if p, err := d.opts.LookPath(b); err == nil {
 			candidates = append(candidates, p)
@@ -594,6 +621,47 @@ func runVersion(argv []string) (string, error) {
 		return "", errors.New("timed out")
 	}
 	return string(out), err
+}
+
+func processKey(name string) string {
+	name = filepath.Base(strings.TrimSpace(name))
+	name = strings.TrimSuffix(strings.ToLower(name), ".exe")
+	return name
+}
+
+// listProcesses returns executable names without arguments so scan reports do
+// not risk capturing credentials from command lines. Windows is included even
+// though broader Windows scanner verification remains a P2 item.
+func listProcesses() ([]string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	var cmd *exec.Cmd
+	if runtime.GOOS == "windows" {
+		cmd = exec.CommandContext(ctx, "tasklist", "/FO", "CSV", "/NH")
+	} else {
+		cmd = exec.CommandContext(ctx, "ps", "-axo", "comm=")
+	}
+	out, err := cmd.Output()
+	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		return nil, errors.New("timed out")
+	}
+	if err != nil {
+		return nil, err
+	}
+	if runtime.GOOS != "windows" {
+		return strings.Split(string(out), "\n"), nil
+	}
+	rows, err := csv.NewReader(strings.NewReader(string(out))).ReadAll()
+	if err != nil {
+		return nil, err
+	}
+	names := make([]string, 0, len(rows))
+	for _, row := range rows {
+		if len(row) > 0 {
+			names = append(names, row[0])
+		}
+	}
+	return names, nil
 }
 
 func firstLine(s string) string {
