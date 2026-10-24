@@ -2,7 +2,7 @@
 
 ## 1.0.0-draft.1 (2026-10-23)
 
-- `pack.schema.json`: `privometry.detectorpack/v1`, the `pack.yaml` of a detector pack, with the same fields, signing and trust model as rule packs (Contracts v1, Detector packs). `categories` are the six content-finding categories. Detector pack IDs are their own namespace, so `privometry/secrets` can name both a rule pack and a detector pack.
+- `pack.schema.json`: `privometry.detectorpack/v1`, the `pack.yaml` of a detector pack, with the same fields, signing and trust model as rule packs (Contracts v1, Detector packs). `categories` are the six content-finding categories. The credential detector pack is `privometry/credentials`, distinct from the `privometry/secrets` rule pack.
 - `detectors.schema.json`: `privometry.detectors/v1`, the files in `detectors/`. Each detector has an `id`, `title`, `category`, `kind` (`pattern`, `entropy`, `unicode`, `structure`), `severity`, `confidence`, `applies_to` sources, optional `keywords` prefilter and `allow` list, and inline `samples` (`match` and `no_match`, at least one each).
 - Additions beyond Contracts v1:
   - `secret_type` (required for credentials) names the kind reported in `secret_detected`;

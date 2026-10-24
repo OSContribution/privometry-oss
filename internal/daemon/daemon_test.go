@@ -431,7 +431,7 @@ func TestContentScanningDecisions(t *testing.T) {
 		t.Fatalf("%d findings, want 1", len(fs))
 	}
 	cf := fs[0].Event.ContentFinding
-	if cf.DetectorID != "privometry/secrets:github-token" || cf.Source != "file_write" || cf.ActionTaken != "asked" ||
+	if cf.DetectorID != "privometry/credentials:github-token" || cf.Source != "file_write" || cf.ActionTaken != "asked" ||
 		cf.SecretType != "github_token" || !strings.HasPrefix(cf.Fingerprint, "hmac-sha256:") || cf.Location.PathHash == "" {
 		t.Errorf("finding %+v", cf)
 	}

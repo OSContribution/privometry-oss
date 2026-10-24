@@ -23,9 +23,8 @@ const (
 type Manifest struct {
 	Schema string `json:"schema"`
 
-	// <publisher>/<name>, for example privometry/secrets. Detectors are referenced
-	// as <id>:<detector-id> in content_finding.detector_id. Detector pack IDs are
-	// a separate namespace from rule pack IDs.
+	// <publisher>/<name>, for example privometry/credentials. Detectors are
+	// referenced as <id>:<detector-id> in content_finding.detector_id.
 	ID string `json:"id"`
 
 	// A new detector or a wider pattern is a minor change; removing a detector or

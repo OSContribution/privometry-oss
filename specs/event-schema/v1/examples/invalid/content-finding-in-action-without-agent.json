@@ -40,7 +40,7 @@
     "user.local_user": "clear"
   },
   "content_finding": {
-    "detector_id": "privometry/secrets:github-token",
+    "detector_id": "privometry/credentials:github-token",
     "pack_version": "1.0.0",
     "category": "credential",
     "severity": "high",

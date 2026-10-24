@@ -338,7 +338,7 @@ func TestContentFindingsAtRest(t *testing.T) {
 	for key, src := range map[string]string{
 		"CLAUDE.md privometry/injection:skip-approvals":                             "memory_file",
 		"services/billing/AGENTS.md privometry/hidden-content:invisible-characters": "memory_file",
-		"~/.claude/CLAUDE.md privometry/secrets:github-token":                       "memory_file",
+		"~/.claude/CLAUDE.md privometry/credentials:github-token":                   "memory_file",
 	} {
 		f, ok := got[key]
 		if !ok {

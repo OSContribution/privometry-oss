@@ -73,4 +73,4 @@ Week estimates assume 2–3 engineers.
 - [x] SCAN-02 person-or-agent attribution: classify a change as `agent` within two minutes of an allowed agent write to that path, otherwise `person`. Keep the window configurable in a later release if operational evidence requires it.
 - [x] Credential detection in the hook client's fail-mode path (daemon down), using the redaction recognizers without loading the detector engine.
 - [x] Local capture set to `redacted` (Database design v1): the daemon applies it at the persistence boundary, including spool imports.
-- [ ] Detector pack `privometry/secrets` shares its ID with the rule pack `privometry/secrets`, following Contracts v1; they are separate namespaces, but consider renaming one (for example `privometry/credentials`) before the packs are published.
+- [x] Rename the credential detector pack to `privometry/credentials`; the rule pack remains `privometry/secrets`, making their separate namespaces explicit before publication.
