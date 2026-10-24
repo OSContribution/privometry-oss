@@ -2,6 +2,7 @@
 
 ## 1.0.0-draft.2 (2026-10-23)
 
+- MCP source pointers may contain a whole-segment `*` wildcard. The Claude Code definition uses `/projects/*/mcpServers` to discover project-scoped servers in `~/.claude.json`.
 - `memory_files` (PRD SCAN-01): files an agent loads as standing instructions or memory, with `tier`, `kind` (`instructions`, `rules`, `memory`), `format`, `paths`, and `nested` (project tier only: the same path in any folder below the repo root), `imports` (the agent follows `@path` imports) and `written_by_agent` (automatic memory).
 - The shipped definitions list Claude Code (`CLAUDE.md` at managed, user and project tiers, `CLAUDE.local.md`, `.claude/rules/`, automatic memory in `~/.claude/projects/*/memory/`), Codex CLI (`AGENTS.md`, `AGENTS.override.md`, experimental memories) and Cursor (`.cursor/rules/*.mdc`, moved here from `config_tiers`, plus `AGENTS.md` and `.cursorrules`).
 - `tool_targets.*.content`: where a tool's written text lives (Claude Code `Write` `/content`, `Edit` `/new_string`, `NotebookEdit` `/new_source`), so the content scanner checks it before the write.

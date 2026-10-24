@@ -48,6 +48,10 @@ mcp_sources:
     format: json
     paths: { any: ["~/.claude.json"] }
     pointer: /mcpServers
+  - tier: user
+    format: json
+    paths: { any: ["~/.claude.json"] }
+    pointer: /projects/*/mcpServers
   - tier: project
     format: json
     paths: { any: [".mcp.json"] }

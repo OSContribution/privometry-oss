@@ -285,6 +285,16 @@
           "format": "json",
           "paths": {
             "any": [
+              "~/.claude.json"
+            ]
+          },
+          "pointer": "/projects/*/mcpServers",
+          "tier": "user"
+        },
+        {
+          "format": "json",
+          "paths": {
+            "any": [
               ".mcp.json"
             ]
           },
