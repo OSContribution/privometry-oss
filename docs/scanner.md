@@ -52,7 +52,7 @@ Reports never contain secret values. Commands and URLs pass through the same red
 
 ## Known gaps
 
-- Claude Code local-scope MCP servers (`projects.<path>.mcpServers` in `~/.claude.json`) and plugins are not listed yet.
+- Claude Code plugins are not listed yet.
 - Cursor's IDE auto-run setting lives in the app's state database; only `~/.cursor/cli-config.json` is checked.
 - Cursor and Codex definitions are based on documentation; Claude Code is verified against recorded fixtures.
 - Windows paths are defined but untested (Windows support is P2). Gemini CLI and Copilot adapters arrive in P2.

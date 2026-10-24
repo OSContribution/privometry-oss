@@ -189,8 +189,8 @@
             "$ref": "#/$defs/os_paths"
           },
           "pointer": {
-            "$ref": "#/$defs/json_pointer",
-            "description": "Location of the server map inside the file."
+            "$ref": "#/$defs/json_pointer_pattern",
+            "description": "Location of the server map inside the file. A segment that is exactly * visits every key at that level."
           }
         }
       }
@@ -512,6 +512,10 @@
     "json_pointer": {
       "type": "string",
       "pattern": "^(/([^~/]|~[01])*)*$"
+    },
+    "json_pointer_pattern": {
+      "type": "string",
+      "pattern": "^(/(\\*|([^~/*]|~[01])*))*$"
     },
     "file_format": {
       "enum": [

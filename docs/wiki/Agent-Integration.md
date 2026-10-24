@@ -28,7 +28,7 @@ Codex query capture uses the observe-only `UserPromptSubmit` event. The daemon r
 - `detect`: binaries, processes, app paths, version command, and version parsing inputs.
 - `env_overrides`: agent-specific configuration-root environment variables.
 - `config_tiers`: user, project, local, and managed settings with formats and capabilities.
-- `mcp_sources`: locations and document pointers containing MCP server configuration.
+- `mcp_sources`: locations and document pointers containing MCP server configuration; a whole-segment `*` visits dynamic scopes such as Claude Code's per-project server maps.
 - `memory_files`: instruction, memory, and skill paths, including nested project behavior.
 - `hooks`: registration strategy, install paths, timeout, trust, fail-closed setting, events, request pointers, and response templates.
 - `tool_kinds`: native tool name to normalized action mapping.

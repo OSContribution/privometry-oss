@@ -136,7 +136,11 @@ func scanContent(agents []discover.Agent) ([]ContentFinding, error) {
 				var b strings.Builder
 				for _, srv := range a.MCPServers {
 					if srv.Path == c.Path {
-						b.WriteString(content.Flatten(parsers.Lookup(c.Doc, srv.Pointer)))
+						pointer := srv.RawPointer
+						if pointer == "" {
+							pointer = srv.Pointer
+						}
+						b.WriteString(content.Flatten(parsers.Lookup(c.Doc, pointer)))
 					}
 				}
 				add(a, c.Tier, c.Path, b.String(), content.SourceAgentConfig, false)

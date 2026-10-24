@@ -101,6 +101,9 @@ type MCPServer struct {
 	EnvNames  []string            `json:"env_names,omitempty"`
 	Pinned    *bool               `json:"pinned,omitempty"`
 	Package   string              `json:"package,omitempty"`
+	// RawPointer addresses the server in the parsed document. Pointer is safe
+	// to report and may abbreviate a home or repository path used as a map key.
+	RawPointer string `json:"-"`
 }
 
 // Hook is one registered hook command, redacted.
@@ -477,41 +480,98 @@ func isPrivometryHook(command string) bool {
 
 // mcpServers reads the server map at pointer.
 func (d *discoverer) mcpServers(cf *ConfigFile, pointer string) []MCPServer {
-	servers := parsers.Map(parsers.Lookup(cf.Doc, pointer))
-	names := make([]string, 0, len(servers))
-	for n := range servers {
-		names = append(names, n)
-	}
-	sort.Strings(names)
 	var out []MCPServer
-	for _, name := range names {
-		m := parsers.Map(servers[name])
-		s := MCPServer{Name: name, Tier: cf.Tier, Path: cf.Path, Pointer: pointer + "/" + escapePointer(name), Transport: "stdio"}
-		url := parsers.String(m["url"])
-		if url == "" {
-			url = parsers.String(m["httpUrl"])
+	for _, found := range d.pointerMaps(cf.Doc, pointer) {
+		names := make([]string, 0, len(found.value))
+		for name := range found.value {
+			names = append(names, name)
 		}
-		if url != "" {
-			s.Transport = "http"
-			s.URL = d.redact(url)
-		}
-		if cmd := parsers.String(m["command"]); cmd != "" {
-			argv := []string{cmd}
-			for _, a := range parsers.List(m["args"]) {
-				argv = append(argv, fmt.Sprint(a))
+		sort.Strings(names)
+		for _, name := range names {
+			m := parsers.Map(found.value[name])
+			rawPointer := found.rawPointer + "/" + escapePointer(name)
+			s := MCPServer{Name: name, Tier: cf.Tier, Path: cf.Path,
+				Pointer: found.pointer + "/" + escapePointer(name), RawPointer: rawPointer, Transport: "stdio"}
+			url := parsers.String(m["url"])
+			if url == "" {
+				url = parsers.String(m["httpUrl"])
 			}
-			s.Command = d.redact(strings.Join(argv, " "))
-			s.Package, s.Pinned = packageOf(argv)
-		}
-		for _, key := range []string{"env", "headers", "http_headers"} {
-			for k := range parsers.Map(m[key]) {
-				s.EnvNames = append(s.EnvNames, k)
+			if url != "" {
+				s.Transport = "http"
+				s.URL = d.redact(url)
 			}
+			if cmd := parsers.String(m["command"]); cmd != "" {
+				argv := []string{cmd}
+				for _, a := range parsers.List(m["args"]) {
+					argv = append(argv, fmt.Sprint(a))
+				}
+				s.Command = d.redact(strings.Join(argv, " "))
+				s.Package, s.Pinned = packageOf(argv)
+			}
+			for _, key := range []string{"env", "headers", "http_headers"} {
+				for k := range parsers.Map(m[key]) {
+					s.EnvNames = append(s.EnvNames, k)
+				}
+			}
+			sort.Strings(s.EnvNames)
+			out = append(out, s)
 		}
-		sort.Strings(s.EnvNames)
-		out = append(out, s)
 	}
 	return out
+}
+
+type pointerMap struct {
+	pointer    string
+	rawPointer string
+	value      map[string]any
+}
+
+// pointerMaps follows an RFC 6901 pointer with optional whole-segment `*`
+// wildcards. Wildcard keys are sorted for deterministic reports. A path used
+// as a map key is shortened in the report pointer but retained privately for
+// reading the selected server configuration.
+func (d *discoverer) pointerMaps(doc any, pointer string) []pointerMap {
+	parts := strings.Split(strings.TrimPrefix(pointer, "/"), "/")
+	if pointer == "" {
+		parts = nil
+	}
+	var walk func(any, int, string, string) []pointerMap
+	walk = func(cur any, at int, shown, raw string) []pointerMap {
+		if at == len(parts) {
+			if m, ok := cur.(map[string]any); ok {
+				return []pointerMap{{pointer: shown, rawPointer: raw, value: m}}
+			}
+			return nil
+		}
+		part := strings.NewReplacer("~1", "/", "~0", "~").Replace(parts[at])
+		m, ok := cur.(map[string]any)
+		if !ok {
+			return nil
+		}
+		if part != "*" {
+			next, ok := m[part]
+			if !ok {
+				return nil
+			}
+			encoded := "/" + escapePointer(part)
+			return walk(next, at+1, shown+encoded, raw+encoded)
+		}
+		keys := make([]string, 0, len(m))
+		for key := range m {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+		var out []pointerMap
+		for _, key := range keys {
+			shownKey := key
+			if filepath.IsAbs(key) {
+				shownKey = d.display(key)
+			}
+			out = append(out, walk(m[key], at+1, shown+"/"+escapePointer(shownKey), raw+"/"+escapePointer(key))...)
+		}
+		return out
+	}
+	return walk(doc, 0, "", "")
 }
 
 var pinnedRE = regexp.MustCompile(`^(@[^/]+/)?[^@]+@[0-9][^\s]*$`)

@@ -129,7 +129,8 @@ type AdapterMCPSource struct {
 	// to the repo root; * matches within one path segment.
 	Paths map[string][]string `json:"paths"`
 
-	// Location of the server map inside the file.
+	// Location of the server map inside the file. A segment that is exactly *
+	// visits every key at that level.
 	Pointer string `json:"pointer"`
 }
 
