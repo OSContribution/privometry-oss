@@ -10,7 +10,7 @@ agent ──stdin──► privometry-hook ──Unix socket──► privometry
 
 ## privometryd
 
-The daemon (`cmd/privometryd`, `internal/daemon`). Install it as a per-user background service with `privometry daemon install`, or run `privometryd` in the foreground.
+The daemon (`cmd/privometryd`, `internal/daemon`). Install it as a per-user background service with `privometry daemon install`, or run `privometryd` in the foreground. Timeline targets are redacted at the SQLite persistence boundary by default, including events imported from the fallback spool.
 
 - **Socket**: `~/.privometry/privometryd.sock`, mode 0600 in a 0700 folder. One JSON request and response per connection (`internal/ipc`). A lock file (`privometryd.lock`) keeps it to one daemon per data folder.
 - **Per hook call**: reads the payload through the adapter's request pointers, maps the tool to an action (`tool_kinds`, `tool_targets`, MCP name template, `apply_patch` files), looks up the session, decides with the merged policy (shipped packs, `~/.privometry/policy.yaml`, the repo's `.privometry/policy.yaml`), renders the agent's native reply from the adapter's templates, and records the event.

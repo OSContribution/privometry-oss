@@ -72,5 +72,5 @@ Week estimates assume 2–3 engineers.
 - [x] Contracts v1 defines seven event types (`prompt` and `content_finding` were added after the original five-type draft); historical changelog entries retain their original wording.
 - [ ] SCAN-02 person-or-agent attribution: proposed rule is "agent" when the hash changes within a few seconds after an allowed agent write to that path, else "person"; confirm.
 - [x] Credential detection in the hook client's fail-mode path (daemon down), using the redaction recognizers without loading the detector engine.
-- [ ] Local capture set to `redacted` (Database design v1): add the setting to the edge.
+- [x] Local capture set to `redacted` (Database design v1): the daemon applies it at the persistence boundary, including spool imports.
 - [ ] Detector pack `privometry/secrets` shares its ID with the rule pack `privometry/secrets`, following Contracts v1; they are separate namespaces, but consider renaming one (for example `privometry/credentials`) before the packs are published.

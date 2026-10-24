@@ -154,8 +154,8 @@ func TestClaudeCodeDecisions(t *testing.T) {
 	if home.TargetClear != "rm -rf ~" || home.Event.Action.Target != "rm -rf ~" || home.Event.Decision.Source != "policy" {
 		t.Errorf("home event: clear %q target %q source %s", home.TargetClear, home.Event.Action.Target, home.Event.Decision.Source)
 	}
-	if rows[0].Event.Action.Target != "~/<redacted_path>" || rows[0].TargetClear != "/home/dev/.aws/credentials" {
-		t.Errorf("uploaded target must be redacted: %q", rows[0].Event.Action.Target)
+	if rows[0].Event.Action.Target != "~/<redacted_path>" || rows[0].TargetClear != "~/<redacted_path>" {
+		t.Errorf("uploaded and local targets must be redacted: event=%q local=%q", rows[0].Event.Action.Target, rows[0].TargetClear)
 	}
 }
 
@@ -439,7 +439,7 @@ func TestContentScanningDecisions(t *testing.T) {
 	if strings.Contains(string(raw), token[4:]) {
 		t.Errorf("the token leaked into the stored finding: %s", raw)
 	}
-	if !strings.Contains(fs[0].TargetClear, "/home/dev/acme-api/src/config.ts:1") || !strings.Contains(fs[0].TargetClear, "ghp_…") {
+	if strings.Contains(fs[0].TargetClear, "/home/dev/") || !strings.Contains(fs[0].TargetClear, "~/<redacted_path>") || !strings.Contains(fs[0].TargetClear, "<secret>") {
 		t.Errorf("local excerpt %q", fs[0].TargetClear)
 	}
 	actions, _ := d.Store().Events(timeline.Query{Type: "action", Limit: 1})
@@ -632,7 +632,7 @@ func TestMemoryFileHashingAndAttribution(t *testing.T) {
 		m["tool_input"] = map[string]any{"file_path": nested, "old_string": "a", "new_string": "b"}
 	}))
 	fs = findings(t, d)
-	if fs[0].Event.ContentFinding.DetectorID != "privometry/injection:ignore-previous-instructions" || !strings.Contains(fs[0].TargetClear, nested) {
+	if fs[0].Event.ContentFinding.DetectorID != "privometry/injection:ignore-previous-instructions" || strings.Contains(fs[0].TargetClear, nested) || !strings.Contains(fs[0].TargetClear, "~/<redacted_path>") {
 		t.Errorf("nested write finding %+v %q", fs[0].Event.ContentFinding, fs[0].TargetClear)
 	}
 	beforeDaily := len(fs)

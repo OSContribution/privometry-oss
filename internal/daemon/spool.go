@@ -58,7 +58,7 @@ func (d *Daemon) ImportSpool() (int, error) {
 				e.Event.Agent.SessionID = s.ID
 			}
 		}
-		if err := d.store.Append(&e.Event, e.TargetClear); err != nil {
+		if err := d.appendEvent(&e.Event, e.TargetClear); err != nil {
 			return n, err
 		}
 		n++

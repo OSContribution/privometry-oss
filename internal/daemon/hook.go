@@ -132,7 +132,7 @@ func (d *Daemon) promptSubmit(c call) error {
 	if remote := remoteOf(sess); remote != "" {
 		ev.Repo = &events.Repo{Remote: remote}
 	}
-	return d.store.Append(ev, fmt.Sprintf("Query submitted (%d characters)", chars))
+	return d.appendEvent(ev, fmt.Sprintf("Query submitted (%d characters)", chars))
 }
 
 // caller detects another agent running this agent's hooks, from the payload
@@ -328,7 +328,7 @@ func (d *Daemon) decide(c call) (ipc.Response, error) {
 	ev := d.actionEvent(c, sess, toolName, useID, bestAction, best, native, remote, time.Since(start))
 	ev.Action.SecretTypes = sum.SecretTypes
 	target := targetOf(bestAction)
-	if err := d.store.Append(ev, target); err != nil {
+	if err := d.appendEvent(ev, target); err != nil {
 		return ipc.Response{}, err
 	}
 	d.recordFindings(c, sess, ev.Action, ev.MCP, remote, hits, pieces, actionTaken(best.Verdict))
@@ -600,5 +600,5 @@ func (d *Daemon) configChange(c call) error {
 			Holds: []events.ConfigHold{holds}, DetectedBy: events.ConfigDetectedByAgentHook},
 		Redaction: map[string]contract.PrivacyLevel{"config.path": contract.PrivacyLevelRedacted, "user.local_user": contract.PrivacyLevelClear},
 	}
-	return d.store.Append(ev, path)
+	return d.appendEvent(ev, path)
 }

@@ -492,7 +492,7 @@
       var device = h('section', {}, [h('div', { class: 'sec-h' }, [h('h2', { text: 'This device' }), h('span', { class: 'aside' }, [pill('Local only', '', 'off')])]),
         h('div', { class: 'panel' }, [h('dl', { class: 'kv' }, kv.reduce(function (a, x) { a.push(h('dt', { text: x[0] }), h('dd', { class: x[0] === 'Device ID' ? 'mono' : null, text: x[1] || '-' })); return a; }, []))])]);
       var local = h('section', {}, [h('div', { class: 'sec-h' }, [h('h2', { text: 'Local data' })]), h('div', { class: 'panel rows' }, [
-        h('div', { class: 'setting' }, [h('span', { text: 'What the timeline stores' }), h('p', { text: 'Full commands and paths, on this machine only. Anything sent to an organization later is redacted first.' })]),
+        h('div', { class: 'setting' }, [h('span', { text: 'What the timeline stores' }), h('p', { text: 'Commands and paths after secrets, personal paths, and other sensitive values are redacted.' })]),
         h('div', { class: 'setting' }, [h('span', { text: 'Keep history for' }), h('p', { text: d.retention_days + ' days. Stored in ' + d.data_dir + '/privometry.db' + (d.db_bytes ? ' (' + bytes(d.db_bytes) + ')' : '') + ', readable only by you.' })]),
         h('div', { class: 'setting' }, [h('span', { text: 'Diagnostics' }), h('p', {}, ['Run ', h('span', { class: 'mono', text: 'privometry doctor --bundle' }), ' for a zip to share. It has no full commands, and secrets are removed.'])])
       ])]);
