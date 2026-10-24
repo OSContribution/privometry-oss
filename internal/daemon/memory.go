@@ -24,6 +24,9 @@ const (
 	rootTTL = 24 * time.Hour
 	// maxMemoryScan bounds how much of one memory file is scanned.
 	maxMemoryScan = 1 << 20
+	// memoryRescanInterval reapplies detector packs to unchanged instruction
+	// files. The last scan time is persisted with the file hash.
+	memoryRescanInterval = 24 * time.Hour
 )
 
 // memoryFile is one memory or instruction file the daemon watches.
@@ -114,37 +117,71 @@ func (d *Daemon) memoryList() []memoryFile {
 
 // CheckMemory hashes every watched memory file. A file seen for the first
 // time is scanned; a changed one records a config_change event saying who
-// changed it, and is scanned again. It returns how many events it recorded.
+// changed it and is scanned again. Unchanged files are rescanned daily so new
+// detector packs apply without waiting for an edit. It returns how many events
+// it recorded.
 func (d *Daemon) CheckMemory() (int, error) {
 	prev, err := d.store.ConfigHashes()
 	if err != nil {
 		return 0, err
 	}
 	n := 0
+	seen := map[string]bool{}
 	for _, m := range d.memoryList() {
+		seen[m.path] = true
 		k, err := d.checkMemoryFile(m, prev[m.path], prev[m.path].Path != "", "")
 		if err != nil {
 			return n, err
 		}
 		n += k
 	}
+	// Project roots leave the active watcher after rootTTL, and nested files
+	// can be learned only through InstructionsLoaded. Keep rescanning their
+	// persisted paths when unchanged; changed paths will be handled when that
+	// workspace or file next becomes active.
+	now := d.cfg.Now()
+	for path, old := range prev {
+		if seen[path] || old.Kind != "memory" || !scanDue(now, old.ObservedAt) {
+			continue
+		}
+		raw, err := os.ReadFile(path)
+		if err != nil || digest(raw) != old.SHA256 {
+			continue
+		}
+		a, ok := d.cfg.Registry.Get(contract.AgentProduct(old.Agent))
+		if !ok {
+			continue
+		}
+		if err := d.store.SetConfigHash(old, now); err != nil {
+			return n, err
+		}
+		n += d.scanAtRest(memoryFile{agent: a, path: path, tier: contract.ConfigTier(old.Tier), kind: registry.AdapterMemoryFileKindInstructions}, raw)
+	}
 	return n, nil
+}
+
+func scanDue(now, observed time.Time) bool {
+	return observed.IsZero() || !now.Before(observed.Add(memoryRescanInterval))
 }
 
 // checkMemoryFile compares one file with its last state. by forces the
 // attribution, for a write an agent hook just reported.
 func (d *Daemon) checkMemoryFile(m memoryFile, old timeline.ConfigHash, known bool, by events.ConfigChangedBy) (int, error) {
+	now := d.cfg.Now()
 	raw, err := os.ReadFile(m.path)
 	sum := ""
 	if err == nil {
 		sum = digest(raw)
 	}
-	if known && old.SHA256 == sum {
+	unchanged := known && old.SHA256 == sum
+	rescanDue := unchanged && scanDue(now, old.ObservedAt)
+	if unchanged && !rescanDue {
 		return 0, nil
 	}
 	n := 0
-	h := timeline.ConfigHash{Path: m.path, Tier: string(m.tier), Agent: string(m.agent.Agent), SHA256: sum, Kind: "memory"}
-	if known {
+	h := timeline.ConfigHash{Path: m.path, Tier: string(m.tier), Agent: string(m.agent.Agent), SHA256: sum,
+		Kind: "memory", ChangedBy: old.ChangedBy}
+	if known && !unchanged {
 		if by == "" {
 			by = d.attribute(m.path)
 		}
@@ -154,7 +191,7 @@ func (d *Daemon) checkMemoryFile(m memoryFile, old timeline.ConfigHash, known bo
 		}
 		n++
 	}
-	if err := d.store.SetConfigHash(h, d.cfg.Now()); err != nil {
+	if err := d.store.SetConfigHash(h, now); err != nil {
 		return n, err
 	}
 	if sum != "" {
