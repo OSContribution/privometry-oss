@@ -1,6 +1,8 @@
 # Build and release output
 /bin/
 /dist/
+/privometry.cdx.json
+/dependency-licenses.json
 /coverage/
 coverage.out
 *.coverprofile

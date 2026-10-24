@@ -10,7 +10,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: anchore/sbom-action@v0
+      - uses: actions/setup-go@v5
         with:
-          path: .
-          artifact-name: privometry-oss.spdx.json
+          go-version-file: go.mod
+      - run: go run ./scripts/release-metadata
+      - uses: actions/upload-artifact@v4
+        with:
+          name: privometry-sbom
+          path: privometry.cdx.json

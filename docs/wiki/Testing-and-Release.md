@@ -38,7 +38,7 @@ The native GitLab pipeline in `.gitlab-ci.yml` runs for merge requests, the defa
 
 The existing GitHub workflows are optional mirrors for downstream users. They run the Linux/macOS test matrix, linting, a GoReleaser snapshot, CodeQL, JSON syntax checks, SBOM generation, and dependency inventory. GitLab remains the canonical project and CI environment.
 
-The Go build and module caches are stored below the CI project directory and keyed per GitLab project. No user configuration or machine-wide agent state is scanned in CI; `--no-machine` limits the security gate to the checked-out repository.
+The Go build and module caches are stored below the CI project directory and keyed per GitLab project. No user configuration or machine-wide agent state is scanned in CI; `--no-machine` limits the security gate to the checked-out repository. The release-compliance job also creates a deterministic CycloneDX 1.5 SBOM and a dependency-license policy report from the modules linked into the four release commands. A missing or unrecognized dependency license fails the job, while both reports remain available for review.
 
 Contract validation in Go is stronger than syntax-only validation: it compiles schemas and checks all positive and negative fixtures.
 
@@ -59,7 +59,7 @@ GoReleaser builds static binaries for macOS and Linux on `amd64` and `arm64`:
 - `privometry-hook`
 - `privometry-mcp-shim`
 
-Archives include `LICENSE`, `NOTICE`, and `README.md`, plus a checksum manifest. Windows release packaging is not enabled yet.
+Archives include `LICENSE`, `NOTICE`, `README.md`, `privometry.cdx.json`, and `dependency-licenses.json`, plus a checksum manifest. Generate and inspect the compliance files locally with `make release-metadata`. Windows release packaging is not enabled yet.
 
 ## Signing requirements
 

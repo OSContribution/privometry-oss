@@ -13,4 +13,9 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - run: go list -m -json all
+      - run: go run ./scripts/release-metadata
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dependency-licenses
+          path: dependency-licenses.json

@@ -1,10 +1,12 @@
-# Cross-platform release builds. Signing, SBOM, Homebrew and Scoop are added in M6.
+# Cross-platform release builds. Publishing remains disabled until the production
+# release trust root and signing-key custody are approved.
 version: 2
 project_name: privometry
 
 before:
   hooks:
     - go mod tidy
+    - go run ./scripts/release-metadata -version {{.Version}}
 
 builds:
   - &bin
@@ -36,7 +38,7 @@ builds:
 archives:
   - formats: [tar.gz]
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
-    files: [LICENSE, NOTICE, README.md]
+    files: [LICENSE, NOTICE, README.md, privometry.cdx.json, dependency-licenses.json]
 
 checksum:
   name_template: checksums.txt
