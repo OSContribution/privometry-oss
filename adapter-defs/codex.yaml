@@ -19,6 +19,9 @@ detect:
       - "/Applications/Codex.app/Contents/Resources/codex"
   version_cmd: [codex, --version]
   bypass_flags: [--dangerously-bypass-approvals-and-sandbox]
+  process_patterns: ["@openai/codex/"]
+  # The desktop app's engine (app-server) and the MCP server run all day without sessions.
+  no_session_args: [mcp-server, app-server]
 env_overrides:
   - var: CODEX_HOME
     replaces: "~/.codex"
@@ -97,6 +100,9 @@ hooks:
     required: true
     tiers: [user, project]
     instructions: Open Codex, run /hooks and trust the Privometry hook once; the desktop app then runs it too.
+  disable_settings:
+    - { pointer: /features/hooks, value: false }
+    - { pointer: /features/codex_hooks, value: false }
   events:
     # Recorded with 0.164.0: payloads carry session_id, turn_id (no prompt_id),
     # transcript_path (null in codex exec), cwd, model and permission_mode.

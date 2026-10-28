@@ -77,7 +77,7 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer, opts Options)
 
 	reason := "daemon_unavailable"
 	if addr, err := opts.Env.IPCAddress(); err == nil {
-		resp, err := ipc.Call(addr, ipc.Request{Op: "hook", Hook: &ipc.HookRequest{Agent: agent, Event: event, Payload: payload, Probe: opts.Env.Getenv(ProbeEnv)}}, opts.Timeout)
+		resp, err := ipc.Call(addr, ipc.Request{Op: "hook", Hook: &ipc.HookRequest{Agent: agent, Event: event, Payload: payload, Probe: opts.Env.Getenv(ProbeEnv), PPID: os.Getppid()}}, opts.Timeout)
 		if err == nil {
 			io.WriteString(stdout, resp.Stdout)
 			io.WriteString(stderr, resp.Stderr)

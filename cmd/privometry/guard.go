@@ -12,6 +12,7 @@ import (
 
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/adapters/registry"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/contract"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/daemon"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/guard"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/ipc"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/platform"
@@ -147,6 +148,9 @@ func guardCmd(args []string, stdout, stderr io.Writer) int {
 			verb := "installed in"
 			if sub == "uninstall" {
 				verb = "removed from"
+				if err := tellDaemon(env, daemon.Lifecycle{Event: "hook_removed", Agent: a.Agent}); err != nil {
+					fmt.Fprintf(stderr, "%s: the daemon could not record the removal: %v\n", a.DisplayName, err)
+				}
 			}
 			fmt.Fprintf(stdout, "%s: hook %s %s", a.DisplayName, verb, path)
 			if sub == "install" && !c.FailClosed {
@@ -224,6 +228,23 @@ func daemonState(env platform.Env) string {
 		return "not running"
 	}
 	return "running"
+}
+
+// tellDaemon reports what a person did with the CLI to a running daemon,
+// which records it and waits up to five seconds to upload it. A daemon that is
+// not running, or too old to know the operation, is not an error: the file
+// watcher or device_stale reports the change later.
+func tellDaemon(env platform.Env, q daemon.Lifecycle) error {
+	addr, err := env.IPCAddress()
+	if err != nil {
+		return nil
+	}
+	body, _ := json.Marshal(q)
+	resp, err := ipc.Call(addr, ipc.Request{Op: "lifecycle", Query: body}, 8*time.Second)
+	if err != nil || resp.OK || strings.HasPrefix(resp.Error, "unknown op") {
+		return nil
+	}
+	return errors.New(resp.Error)
 }
 
 func orDash(s string) string {

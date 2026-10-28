@@ -1,5 +1,7 @@
 # Spike: noticing when a developer turns Privometry off (EDGE-24)
 
+> **Status (2026-10-28): phases 1 to 6 implemented**, apart from the optional organization setting for the stale threshold (`org-api/v1` draft.10, not started). Contracts: `adapter/v1` draft.7, `event-schema/v1` draft.6 (which also gives `sensor_stopped` the reasons `killed` and `stopped`), `edge-api/v1` draft.9. Answered here: the environment of a hardened-runtime binary is readable through `KERN_PROCARGS2` by the same user (macOS platform binaries such as `/bin/sleep` hide theirs); the process listing takes about 30 ms on a Mac running ~900 processes. Still open: the questions about real agents below, which need `scripts/hook-recorder` sessions. See `docs/daemon.md`.
+
 ## The problem
 
 Privometry installs at user level: the hook goes in the agent's user settings and privometryd runs as the user. A developer owns those files and that process, so they can always turn Privometry off. On Team the goal is not to make that impossible but to make it **visible**: every route is reported to the organization as a tamper finding within minutes, with the reason when it can be known. Making it impossible needs config the developer cannot edit (managed settings deployed by an admin or MDM); that is separate work.

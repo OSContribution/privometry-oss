@@ -86,6 +86,19 @@ type AdapterDetect struct {
 	// reports a running agent started with one as an integrity event
 	// (hooks_bypassed), recording the flag and never the command line.
 	BypassFlags []string `json:"bypass_flags,omitempty"`
+
+	// Path fragments that identify the agent whatever its program is called, such
+	// as @anthropic-ai/claude-code/ or the native installer's claude/versions/.
+	// Matched with / as the separator against the program and, for script runtimes
+	// (node, bun, deno, python), against the script. Used for bypass flags, silent
+	// agents and discovery.
+	ProcessPatterns []string `json:"process_patterns,omitempty"`
+
+	// Arguments of long-running commands that start no agent session, such as "mcp
+	// serve" for claude mcp serve. Matched as consecutive arguments after the
+	// program. A process running one is never reported as a silent agent
+	// (hooks_silent).
+	NoSessionArgs []string `json:"no_session_args,omitempty"`
 }
 
 // AdapterEnvOverride is generated from adapter/v1/adapter.schema.json#/properties/env_overrides/items.
@@ -272,8 +285,15 @@ type Hooks struct {
 
 	// Payload fields whose presence identifies this agent as the caller, used when
 	// another agent imports hooks.
-	PayloadMarkers []string    `json:"payload_markers,omitempty"`
-	Events         []HookEvent `json:"events"`
+	PayloadMarkers []string `json:"payload_markers,omitempty"`
+
+	// Settings that turn all of the agent's hooks off, read in every JSON and TOML
+	// config tier the definition lists that holds settings or hooks. The hook is
+	// reported disabled (guard state and heartbeat status disabled, integrity
+	// check hooks_disabled) when any of them holds its value. Empty when none is
+	// known.
+	DisableSettings []HooksDisableSetting `json:"disable_settings,omitempty"`
+	Events          []HookEvent           `json:"events"`
 }
 
 // HooksRegistration is generated from adapter/v1/adapter.schema.json#/$defs/hooks/properties/registration.
@@ -324,6 +344,14 @@ type HooksImportedBy struct {
 	Agent          contract.AgentProduct `json:"agent"`
 	DefaultEnabled bool                  `json:"default_enabled"`
 	Setting        string                `json:"setting,omitempty"`
+}
+
+// HooksDisableSetting is generated from adapter/v1/adapter.schema.json#/$defs/hooks/properties/disable_settings/items.
+type HooksDisableSetting struct {
+	Pointer string `json:"pointer"`
+
+	// The value that turns hooks off, compared after parsing.
+	Value any `json:"value"`
 }
 
 // HookEvent is generated from adapter/v1/adapter.schema.json#/$defs/hook_event.

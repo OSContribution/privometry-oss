@@ -33,3 +33,14 @@ allowlist:
       - internal/guard/guard.go
       - internal/scanner/posture/posture.go
     reason: Docs and CLI help name Privometry's own uninstall commands and the agent permission settings the posture checks report.
+  - detectors: [privometry/injection:disable-protection, privometry/injection:skip-approvals]
+    paths:
+      - adapter-defs/*
+      - specs/adapter/v1/*
+      - specs/event-schema/v1/*
+      - internal/adapters/registry/adapter.gen.go
+      - internal/daemon/lifecycle.go
+    reason: Adapter definitions and their contracts list the flags and settings that skip approvals or turn hooks off, which the sensor detects; its lifecycle events name its own uninstall command.
+  - detectors: [privometry/injection:embed-data-in-url]
+    paths: [docs/implementation-plan.md]
+    reason: The plan describes the detectors for data carried out in URLs.

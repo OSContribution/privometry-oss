@@ -81,6 +81,25 @@
             "pattern": "^-{1,2}[A-Za-z][A-Za-z0-9-]*( [A-Za-z0-9_-]+)?$"
           },
           "description": "Command-line flags that make the agent skip its permission prompts or its hooks, such as --dangerously-skip-permissions. An entry may name a value (--approval-mode yolo), matched as the next argument or after =. The daemon reports a running agent started with one as an integrity event (hooks_bypassed), recording the flag and never the command line."
+        },
+        "process_patterns": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 3,
+            "pattern": "/$"
+          },
+          "description": "Path fragments that identify the agent whatever its program is called, such as @anthropic-ai/claude-code/ or the native installer's claude/versions/. Matched with / as the separator against the program and, for script runtimes (node, bun, deno, python), against the script. Used for bypass flags, silent agents and discovery."
+        },
+        "no_session_args": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]+( [A-Za-z0-9_-]+)*$"
+          },
+          "description": "Arguments of long-running commands that start no agent session, such as \"mcp serve\" for claude mcp serve. Matched as consecutive arguments after the program. A process running one is never reported as a silent agent (hooks_silent)."
         }
       },
       "anyOf": [
@@ -935,6 +954,25 @@
           "description": "Payload fields whose presence identifies this agent as the caller, used when another agent imports hooks.",
           "items": {
             "$ref": "#/$defs/json_pointer"
+          }
+        },
+        "disable_settings": {
+          "type": "array",
+          "description": "Settings that turn all of the agent's hooks off, read in every JSON and TOML config tier the definition lists that holds settings or hooks. The hook is reported disabled (guard state and heartbeat status disabled, integrity check hooks_disabled) when any of them holds its value. Empty when none is known.",
+          "items": {
+            "type": "object",
+            "required": [
+              "pointer",
+              "value"
+            ],
+            "properties": {
+              "pointer": {
+                "$ref": "#/$defs/json_pointer"
+              },
+              "value": {
+                "description": "The value that turns hooks off, compared after parsing."
+              }
+            }
           }
         },
         "events": {

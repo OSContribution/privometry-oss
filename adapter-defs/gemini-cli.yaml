@@ -11,6 +11,7 @@ detect:
   processes: [gemini]
   version_cmd: [gemini, --version]
   bypass_flags: [--yolo, -y, --approval-mode yolo]
+  process_patterns: ["@google/gemini-cli/"]
 config_tiers:
   - tier: user
     format: json

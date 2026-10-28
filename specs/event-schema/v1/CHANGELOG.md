@@ -1,5 +1,11 @@
 # event-schema/v1
 
+## 1.0.0-draft.6 (2026-10-28)
+
+- `integrity.check` gains `hooks_disabled` (a setting turns the agent's hooks off, or Privometry's own entry is off), `hooks_silent` (an agent has run for minutes and its hooks never called Privometry), `sensor_stopped` (privometryd was down for more than five minutes outside a shutdown or reboot) and `sensor_uninstalled` (`privometry daemon uninstall`); privometry-oss `docs/spikes/bypass-detection.md`.
+- `integrity.reason`: `setting`, `config_dir_override`, `untrusted_hook` or `unknown` for `hooks_silent`, and `killed` or `stopped` for `sensor_stopped`.
+- `integrity.down_seconds` and `integrity.actions_while_down` for `sensor_stopped`.
+
 ## 1.0.0-draft.5 (2026-10-28)
 
 - `integrity.check` gains `hooks_bypassed`: a running agent was started with a flag that skips its permission prompts or its hooks (adapter `detect.bypass_flags`), such as Antigravity's `--dangerously-skip-permissions`, which turns its hooks off. `detail` names the flag; the command line is never read into the event.

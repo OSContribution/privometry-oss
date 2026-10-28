@@ -51,9 +51,12 @@ type Config struct {
 	Detectors []*content.Pack
 	Logger    *slog.Logger
 	Now       func() time.Time // nil means time.Now
-	// ProcessArgs lists running processes' arguments, for bypass flags; nil
-	// means platform.ProcessArgs.
-	ProcessArgs func() ([][]string, error)
+	// Procs reads running processes, for bypass flags and silent agents; nil
+	// functions mean the platform's.
+	Procs Procs
+	// BootTime says when the system started, to tell a reboot from a stopped
+	// daemon; nil means platform.BootTime.
+	BootTime func() (time.Time, error)
 	// LocalCapture controls target_clear in the local timeline. Empty defaults
 	// to redacted; clear is retained for explicitly configured deployments.
 	LocalCapture contract.PrivacyLevel
@@ -96,6 +99,7 @@ type Daemon struct {
 	content     *content.Engine
 	memMu       sync.Mutex           // memory file checks, snapshots and restores
 	bypassSeen  map[string]bool      // "<agent> <flag>" running at the last bypass check; housekeeping only
+	procs       procState            // which running processes call the hook, and silent agents already reported
 	roots       map[string]time.Time // workspaces agents worked in, for project memory files
 	agentWrites map[string]time.Time // memory files agents were allowed to write, for attribution
 	bg          sync.WaitGroup       // background scans
@@ -131,8 +135,9 @@ func New(cfg Config) (*Daemon, error) {
 	if cfg.Now == nil {
 		cfg.Now = time.Now
 	}
-	if cfg.ProcessArgs == nil {
-		cfg.ProcessArgs = platform.ProcessArgs
+	cfg.Procs.defaults()
+	if cfg.BootTime == nil {
+		cfg.BootTime = platform.BootTime
 	}
 	if cfg.Logger == nil {
 		cfg.Logger = slog.New(slog.NewTextHandler(os.Stderr, nil))
@@ -218,6 +223,12 @@ func (d *Daemon) Run(ctx context.Context) error {
 		return err
 	}
 	d.cfg.Logger.Info("privometryd listening", "socket", addr, "version", buildinfo.Version)
+	if _, err := d.CheckLastRun(); err != nil {
+		d.cfg.Logger.Warn("could not check the previous run", "err", err)
+	}
+	if err := d.MarkAlive(); err != nil {
+		d.cfg.Logger.Warn("could not mark privometryd alive", "err", err)
+	}
 	go func() {
 		<-ctx.Done()
 		l.Close()
@@ -226,6 +237,11 @@ func (d *Daemon) Run(ctx context.Context) error {
 	go d.cloudLoop(ctx)
 	err = ipc.Serve(l, d.Handle, 5*time.Second)
 	os.Remove(addr)
+	if ctx.Err() != nil {
+		if err := d.MarkStopped(); err != nil {
+			d.cfg.Logger.Warn("could not mark the stop", "err", err)
+		}
+	}
 	return err
 }
 
@@ -234,11 +250,17 @@ func (d *Daemon) housekeeping(ctx context.Context) {
 	defer tick.Stop()
 	lastPrune, lastBypass := time.Time{}, time.Time{}
 	for {
+		if err := d.MarkAlive(); err != nil {
+			d.cfg.Logger.Warn("could not mark privometryd alive", "err", err)
+		}
 		if _, err := d.CheckIntegrity(); err != nil {
 			d.cfg.Logger.Warn("integrity check failed", "err", err)
 		}
 		if _, err := d.CheckMemory(); err != nil {
 			d.cfg.Logger.Warn("memory check failed", "err", err)
+		}
+		if _, err := d.CheckSilent(); err != nil {
+			d.cfg.Logger.Warn("silent agent check failed", "err", err)
 		}
 		if now := d.cfg.Now(); now.Sub(lastBypass) >= bypassEvery {
 			if _, err := d.CheckBypass(); err != nil {
@@ -310,6 +332,15 @@ func (d *Daemon) Handle(req ipc.Request) ipc.Response {
 		}
 		data, _ := json.Marshal(out)
 		return ipc.Response{OK: true, Data: data}
+	case "lifecycle":
+		var q Lifecycle
+		if err := json.Unmarshal(req.Query, &q); err != nil {
+			return ipc.Response{Error: "bad query: " + err.Error()}
+		}
+		if err := d.lifecycle(q); err != nil {
+			return ipc.Response{Error: err.Error()}
+		}
+		return ipc.Response{OK: true}
 	case "mcp":
 		if req.MCP == nil {
 			return ipc.Response{Error: "mcp request without mcp"}
@@ -338,7 +369,7 @@ func (d *Daemon) Handle(req ipc.Request) ipc.Response {
 
 // Ops are the IPC operations this build answers. A CLI newer than the
 // running daemon finds the ones it needs missing and asks for a restart.
-var Ops = []string{"ping", "status", "events", "hook", "mcp", "probe", "memory"}
+var Ops = []string{"ping", "status", "events", "hook", "mcp", "probe", "memory", "lifecycle"}
 
 // Status is what "privometry daemon status" shows.
 type Status struct {

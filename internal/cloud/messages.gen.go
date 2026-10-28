@@ -176,14 +176,16 @@ type HeartbeatHook struct {
 	Tier         contract.ConfigTier   `json:"tier"`
 
 	// untrusted: installed but the agent has not approved it yet (Codex hook
-	// trust).
+	// trust). disabled: installed, but a setting turns the agent's hooks off or
+	// Privometry's own entry is turned off (adapter hooks.disable_settings).
 	Status HeartbeatHookStatus `json:"status"`
 }
 
 // HeartbeatHookStatus is generated from edge-api/v1/messages.schema.json#/$defs/Heartbeat/properties/hooks/items/properties/status.
 //
 // untrusted: installed but the agent has not approved it yet (Codex hook
-// trust).
+// trust). disabled: installed, but a setting turns the agent's hooks off or
+// Privometry's own entry is turned off (adapter hooks.disable_settings).
 type HeartbeatHookStatus string
 
 // Values of HeartbeatHookStatus.
@@ -192,6 +194,7 @@ const (
 	HeartbeatHookStatusMissing     HeartbeatHookStatus = "missing"
 	HeartbeatHookStatusModified    HeartbeatHookStatus = "modified"
 	HeartbeatHookStatusUntrusted   HeartbeatHookStatus = "untrusted"
+	HeartbeatHookStatusDisabled    HeartbeatHookStatus = "disabled"
 	HeartbeatHookStatusUnsupported HeartbeatHookStatus = "unsupported"
 )
 

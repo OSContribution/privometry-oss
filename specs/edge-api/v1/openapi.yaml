@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Privometry edge API
-  version: 1.0.0-draft.8
+  version: 1.0.0-draft.9
   summary: Everything an enrolled Privometry sensor needs from the cloud.
   description: |
     Regional API used by the edge daemon. Every endpoint except enrollment,

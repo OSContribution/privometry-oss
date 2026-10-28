@@ -40,6 +40,9 @@ type HookRequest struct {
 	// carries a valid one is decided as usual but not recorded, so privometry
 	// doctor can test the whole path without writing fake agent activity.
 	Probe string `json:"probe,omitempty"`
+	// PPID is privometry-hook's parent process, usually a shell the agent
+	// started, so the daemon can tell which running agents call it.
+	PPID int `json:"ppid,omitempty"`
 }
 
 // MCPRequest carries one message privometry-mcp-shim saw between an agent and

@@ -147,7 +147,7 @@
               "agent_product": { "$ref": "../../common/v1/common.schema.json#/$defs/agent_product" },
               "agent_version": { "type": "string", "maxLength": 64 },
               "tier": { "$ref": "../../common/v1/common.schema.json#/$defs/config_tier" },
-              "status": { "enum": ["installed", "missing", "modified", "untrusted", "unsupported"], "description": "untrusted: installed but the agent has not approved it yet (Codex hook trust)." }
+              "status": { "enum": ["installed", "missing", "modified", "untrusted", "disabled", "unsupported"], "description": "untrusted: installed but the agent has not approved it yet (Codex hook trust). disabled: installed, but a setting turns the agent's hooks off or Privometry's own entry is turned off (adapter hooks.disable_settings)." }
             }
           }
         },

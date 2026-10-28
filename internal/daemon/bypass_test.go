@@ -29,6 +29,8 @@ func TestBypassFlags(t *testing.T) {
 		{"/usr/local/bin/codex", "exec", "ls"},
 		{"grep", "--yolo"},
 		{"copilot", "--yolo-mode-docs"},
+		// Renamed: found by the npm package path.
+		{"node", "/home/dev/.npm-global/lib/node_modules/@anthropic-ai/claude-code/cli.js", "--dangerously-skip-permissions"},
 	}
 	d, err := daemon.New(daemon.Config{Env: platform.Env{GOOS: "linux", Home: "/home/dev", Getenv: func(k string) string {
 		if k == "PRIVOMETRY_HOME" {
@@ -36,7 +38,13 @@ func TestBypassFlags(t *testing.T) {
 		}
 		return ""
 	}}, Registry: reg, Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
-		ProcessArgs: func() ([][]string, error) { return running, nil }})
+		Procs: daemon.Procs{List: func() ([]platform.Process, error) {
+			var out []platform.Process
+			for i, args := range running {
+				out = append(out, platform.Process{PID: 100 + i, PPID: 1, Args: args})
+			}
+			return out, nil
+		}}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -51,12 +59,13 @@ func TestBypassFlags(t *testing.T) {
 		}
 		return out
 	}
-	if n, err := d.CheckBypass(); err != nil || n != 3 {
+	if n, err := d.CheckBypass(); err != nil || n != 4 {
 		t.Fatalf("first check: %d %v (%v)", n, err, details())
 	}
 	got := strings.Join(details(), "\n")
 	for _, want := range []string{"antigravity: Antigravity is running with --dangerously-skip-permissions, which turns its hooks off",
-		"gemini_cli: Gemini CLI is running with --approval-mode yolo", "claude_code: Claude Code is running with --permission-mode bypassPermissions"} {
+		"gemini_cli: Gemini CLI is running with --approval-mode yolo", "claude_code: Claude Code is running with --permission-mode bypassPermissions",
+		"claude_code: Claude Code is running with --dangerously-skip-permissions"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("missing %q in:\n%s", want, got)
 		}

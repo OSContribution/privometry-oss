@@ -109,6 +109,9 @@ func daemonCmd(args []string, stdout, stderr io.Writer) int {
 			fmt.Fprintf(stdout, "and remove %s\n", display(plan.Path))
 			return 0
 		}
+		if err := tellDaemon(env, daemon.Lifecycle{Event: "sensor_uninstalled"}); err != nil {
+			fmt.Fprintf(stderr, "The daemon could not record the uninstall: %v\n", err)
+		}
 		if err := service.Uninstall(plan, opts); err != nil {
 			return fail(stderr, err)
 		}

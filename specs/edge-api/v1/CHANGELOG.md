@@ -1,5 +1,9 @@
 # edge-api/v1
 
+## 1.0.0-draft.9 (2026-10-28)
+
+- Heartbeat hook `status` gains `disabled`: the hook is installed, but a setting turns the agent's hooks off or Privometry's own entry is turned off (adapter/v1 draft.7 `hooks.disable_settings`).
+
 ## 1.0.0-draft.8 (2026-10-28)
 
 - `/enroll` is refused with `not-entitled` without the `cloud_sync` feature and with `seat-limit-reached` after a seat overage outlasts its grace period; `/events:batch` and `/inventory` are refused with `not-entitled` without `cloud_sync`, and devices stop uploading until a bundle turns it back on.

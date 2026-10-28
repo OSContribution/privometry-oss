@@ -86,6 +86,8 @@ var migrations = []string{
 		restored_from INTEGER
 	);
 	CREATE INDEX memory_versions_path ON memory_versions (path, version_id);`,
+	// Watched files that turn an agent's hooks off (hooks_disabled).
+	`ALTER TABLE config_hashes ADD COLUMN hooks_off INTEGER NOT NULL DEFAULT 0;`,
 }
 
 // Open opens or creates the database at path, readable only by the user.
@@ -550,6 +552,7 @@ func (s *Store) Sessions(limit int) ([]SessionSummary, error) {
 type ConfigHash struct {
 	Path, Tier, Agent, SHA256 string
 	PrivometryHook            bool
+	HooksOff                  bool   // the file turns the agent's hooks off
 	Kind                      string // config or memory; empty means config
 	ChangedBy                 string // memory files: person, agent or "" when unknown
 	ObservedAt                time.Time
@@ -557,7 +560,7 @@ type ConfigHash struct {
 
 // ConfigHashes returns every watched file's last state, by path.
 func (s *Store) ConfigHashes() (map[string]ConfigHash, error) {
-	rows, err := s.db.Query(`SELECT path, tier, agent_product, sha256, privometry_hook, kind, changed_by, observed_at FROM config_hashes`)
+	rows, err := s.db.Query(`SELECT path, tier, agent_product, sha256, privometry_hook, hooks_off, kind, changed_by, observed_at FROM config_hashes`)
 	if err != nil {
 		return nil, err
 	}
@@ -565,16 +568,16 @@ func (s *Store) ConfigHashes() (map[string]ConfigHash, error) {
 	out := map[string]ConfigHash{}
 	for rows.Next() {
 		var h ConfigHash
-		var hook int
+		var hook, off int
 		var observed string
-		if err := rows.Scan(&h.Path, &h.Tier, &h.Agent, &h.SHA256, &hook, &h.Kind, &h.ChangedBy, &observed); err != nil {
+		if err := rows.Scan(&h.Path, &h.Tier, &h.Agent, &h.SHA256, &hook, &off, &h.Kind, &h.ChangedBy, &observed); err != nil {
 			return nil, err
 		}
 		var err error
 		if h.ObservedAt, err = time.Parse(time.RFC3339Nano, observed); err != nil {
 			return nil, fmt.Errorf("timeline: config hash %q has invalid observed_at: %w", h.Path, err)
 		}
-		h.PrivometryHook = hook != 0
+		h.PrivometryHook, h.HooksOff = hook != 0, off != 0
 		out[h.Path] = h
 	}
 	return out, rows.Err()
@@ -582,17 +585,20 @@ func (s *Store) ConfigHashes() (map[string]ConfigHash, error) {
 
 // SetConfigHash stores a watched file's state.
 func (s *Store) SetConfigHash(h ConfigHash, at time.Time) error {
-	hook := 0
+	hook, off := 0, 0
 	if h.PrivometryHook {
 		hook = 1
+	}
+	if h.HooksOff {
+		off = 1
 	}
 	if h.Kind == "" {
 		h.Kind = "config"
 	}
-	_, err := s.db.Exec(`INSERT INTO config_hashes (path, tier, agent_product, sha256, privometry_hook, observed_at, kind, changed_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+	_, err := s.db.Exec(`INSERT INTO config_hashes (path, tier, agent_product, sha256, privometry_hook, hooks_off, observed_at, kind, changed_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(path) DO UPDATE SET tier = excluded.tier, agent_product = excluded.agent_product, sha256 = excluded.sha256,
-		privometry_hook = excluded.privometry_hook, observed_at = excluded.observed_at, kind = excluded.kind, changed_by = excluded.changed_by`,
-		h.Path, h.Tier, h.Agent, h.SHA256, hook, contract.At(at).String(), h.Kind, h.ChangedBy)
+		privometry_hook = excluded.privometry_hook, hooks_off = excluded.hooks_off, observed_at = excluded.observed_at, kind = excluded.kind, changed_by = excluded.changed_by`,
+		h.Path, h.Tier, h.Agent, h.SHA256, hook, off, contract.At(at).String(), h.Kind, h.ChangedBy)
 	return err
 }
 

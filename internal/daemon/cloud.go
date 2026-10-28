@@ -76,7 +76,8 @@ func (c cloudLocal) SensorVersion() string { return c.d.device.SensorVersion }
 func (c cloudLocal) AdapterSetVersion() int64 { return c.d.cfg.AdapterSetVersion }
 
 // Hooks reports each supported agent's Privometry hook as installed,
-// modified (partial or pointing at another hook client) or missing.
+// modified (partial or pointing at another hook client), disabled (a user or
+// managed setting turns the agent's hooks off) or missing.
 func (c cloudLocal) Hooks() []cloud.HeartbeatHook {
 	var out []cloud.HeartbeatHook
 	for _, a := range c.d.cfg.Registry.All() {
@@ -87,6 +88,8 @@ func (c cloudLocal) Hooks() []cloud.HeartbeatHook {
 			status = cloud.HeartbeatHookStatusInstalled
 		case "partial", "stale":
 			status = cloud.HeartbeatHookStatusModified
+		case "disabled":
+			status = cloud.HeartbeatHookStatusDisabled
 		case "unsupported":
 			status = cloud.HeartbeatHookStatusUnsupported
 		}

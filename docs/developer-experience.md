@@ -45,7 +45,7 @@ The API is read-only: `GET /api/events?show=all|exc|ask|deny&agent=&search=&befo
 
 ## Config integrity
 
-Every minute the daemon hashes the agent config files it watches (`internal/daemon/integrity.go`): each agent's hook file, its user and managed settings, and its user MCP server lists (only the server map, so unrelated edits to the same file are ignored). Hashes live in the `config_hashes` table. A change records a `config_change` event (`detected_by: file_watcher`). When the file held Privometry's hook before and no longer does, or the hook entry changed, it also records an `integrity` event (`hook_removed` or `hook_modified`), shown as ALERT in the timeline and by `privometry doctor`.
+Every minute the daemon hashes the agent config files it watches (`internal/daemon/integrity.go`): each agent's hook file, its user and managed settings, and its user MCP server lists (only the server map, so unrelated edits to the same file are ignored). Hashes live in the `config_hashes` table. A change records a `config_change` event (`detected_by: file_watcher`). When the file held Privometry's hook before and no longer does, or the hook entry changed, it also records an `integrity` event (`hook_removed` or `hook_modified`), shown as ALERT in the timeline and by `privometry doctor`. A file that starts turning the agent's hooks off (`disableAllHooks`, Codex `[features] hooks = false`) records `hooks_disabled`; project settings files are watched for the workspaces agents worked in recently. Silent agents and a stopped or uninstalled sensor are described in `docs/daemon.md`.
 
 ## privometry doctor
 

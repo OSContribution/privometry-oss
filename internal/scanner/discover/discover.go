@@ -154,6 +154,7 @@ func Run(reg *registry.Registry, opts Options) ([]Agent, error) {
 			for _, name := range names {
 				if key := processKey(name); key != "" {
 					d.processes[key] = true
+					d.procPaths = append(d.procPaths, strings.ReplaceAll(strings.TrimSpace(name), `\`, "/"))
 				}
 			}
 		}
@@ -176,6 +177,7 @@ type discoverer struct {
 	parsed    map[string]*ConfigFile // by real path, so a file shared by tiers is parsed once
 	dirs      []string               // the repo's folders, for nested memory files; walked once
 	processes map[string]bool        // normalized executable names, read once per scan
+	procPaths []string               // the same executables as listed, with / separators, for process_patterns
 }
 
 func (d *discoverer) wantTier(t contract.ConfigTier) bool {
@@ -273,18 +275,34 @@ func (d *discoverer) agent(a registry.Adapter) (Agent, error) {
 	return agent, nil
 }
 
-// detect looks for a running process, the agent's binary, its desktop app and
-// the binary inside that app, and reads the version from the first binary that
-// answers. Process evidence contains only the adapter's public process name,
-// never a PID or command line.
-func (d *discoverer) detect(a registry.Adapter, agent *Agent) {
-	var candidates []string // binaries to ask for the version, in order
+// runningAs returns the process name or, for an agent running under another
+// name (the native installer's versioned binary), the process pattern that
+// matched a running executable; "" when none did.
+func (d *discoverer) runningAs(a registry.Adapter) string {
 	for _, name := range a.Detect.Processes {
 		if d.processes[processKey(name)] {
-			agent.Installed = true
-			agent.Evidence = append(agent.Evidence, "process "+name)
-			break
+			return name
 		}
+	}
+	for _, pattern := range a.Detect.ProcessPatterns {
+		for _, p := range d.procPaths {
+			if strings.Contains(p, pattern) {
+				return pattern
+			}
+		}
+	}
+	return ""
+}
+
+// detect looks for a running process, the agent's binary, its desktop app and
+// the binary inside that app, and reads the version from the first binary that
+// answers. Process evidence contains only the adapter's public process name or
+// pattern, never a PID, a path or a command line.
+func (d *discoverer) detect(a registry.Adapter, agent *Agent) {
+	var candidates []string // binaries to ask for the version, in order
+	if name := d.runningAs(a); name != "" {
+		agent.Installed = true
+		agent.Evidence = append(agent.Evidence, "process "+name)
 	}
 	for _, b := range a.Detect.Binaries {
 		if p, err := d.opts.LookPath(b); err == nil {

@@ -82,6 +82,16 @@ func (s *Syncer) RefreshBundle() {
 	s.mu.Unlock()
 }
 
+// UploadSoon makes the next Tick upload whatever the interval, unless the
+// cloud refused this device or asked it to back off.
+func (s *Syncer) UploadSoon() {
+	s.mu.Lock()
+	if s.uploadBackoff == 0 {
+		s.nextUpload = time.Time{}
+	}
+	s.mu.Unlock()
+}
+
 // Tick does whatever is due. It reports whether a new bundle was stored.
 func (s *Syncer) Tick(ctx context.Context, now time.Time) bool {
 	s.mu.Lock()

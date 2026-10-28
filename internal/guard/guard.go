@@ -14,7 +14,6 @@ import (
 
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/adapters/registry"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/platform"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/scanner/parsers"
 )
 
 // Options say where the hook lives and what is installed.
@@ -26,6 +25,9 @@ type Options struct {
 	// File, when set, is the hooks file to edit instead of the agent's
 	// user-level one: scripts/hook-recorder writes a throwaway project's.
 	File string
+	// Project, when set, is a project folder whose project-level settings
+	// can also turn the agent's hooks off (Check).
+	Project string
 }
 
 // Change is a computed edit to one agent's config file.
@@ -266,17 +268,22 @@ func Uninstall(a registry.Adapter, opts Options) (*Change, error) {
 
 // Status is whether Privometry's hook is in place for one agent.
 type Status struct {
-	Agent         string   `json:"agent"`
-	Path          string   `json:"path"`
-	State         string   `json:"state"` // installed, partial, stale, missing, unsupported
-	Missing       []string `json:"missing,omitempty"`
-	FailClosed    bool     `json:"fail_closed"`
-	TrustRequired bool     `json:"trust_required,omitempty"`
-	Detail        string   `json:"detail,omitempty"`
+	Agent   string   `json:"agent"`
+	Path    string   `json:"path"`
+	State   string   `json:"state"` // installed, partial, stale, disabled, missing, unsupported
+	Missing []string `json:"missing,omitempty"`
+	// DisabledBy is the config file that turns the agent's hooks off, when
+	// State is disabled because of a setting.
+	DisabledBy    string `json:"disabled_by,omitempty"`
+	FailClosed    bool   `json:"fail_closed"`
+	TrustRequired bool   `json:"trust_required,omitempty"`
+	Detail        string `json:"detail,omitempty"`
 }
 
 // Check reports the hook's state: installed when every event is registered
-// with this privometry-hook, stale when entries point at another binary.
+// with this privometry-hook, stale when entries point at another binary, and
+// disabled when entries are there but a setting turns the agent's hooks off
+// or Privometry's own entry is turned off.
 func Check(a registry.Adapter, opts Options) Status {
 	s := Status{Agent: string(a.Agent)}
 	lay, err := layoutFor(a)
@@ -320,6 +327,14 @@ func Check(a registry.Adapter, opts Options) Status {
 		s.State = "partial"
 	default:
 		s.State = "installed"
+	}
+	if found > 0 {
+		if ownEntryOff(a, doc) {
+			s.State, s.Detail = "disabled", fmt.Sprintf(`Privometry's hook is turned off ("enabled": false) in %s; run privometry guard install`, path)
+		} else if dis := Disabled(a, opts, opts.Project); dis != nil {
+			s.State, s.DisabledBy = "disabled", dis.Path
+			s.Detail = fmt.Sprintf("%s in %s turns off all of %s's hooks, Privometry's included; remove it", dis.Setting, dis.Path, a.DisplayName)
+		}
 	}
 	if t := a.Hooks.Trust; t != nil && t.Required && found > 0 {
 		s.TrustRequired = true
@@ -552,30 +567,9 @@ func (namedLayout) cleanup(*object) {}
 
 // warnings explains settings that would stop the hook from running.
 func warnings(a registry.Adapter, opts Options) []string {
-	if a.Agent != "codex_cli" {
-		return nil
-	}
-	for _, tier := range a.ConfigTiers {
-		if tier.Tier != "user" || tier.Format != registry.FileFormatToml {
-			continue
-		}
-		paths, _ := a.Paths(tier.Paths, opts.Env, "")
-		for _, p := range paths {
-			raw, err := os.ReadFile(filepath.Join(opts.Root, p))
-			if err != nil {
-				continue
-			}
-			doc, err := parsers.Parse("toml", raw)
-			if err != nil {
-				continue
-			}
-			for _, key := range []string{"/features/hooks", "/features/codex_hooks"} {
-				if v, ok := parsers.Lookup(doc, key).(bool); ok && !v {
-					return []string{fmt.Sprintf("hooks are turned off in %s ([features] %s = false); Codex will not run Privometry until you remove that line",
-						p, strings.TrimPrefix(key, "/features/"))}
-				}
-			}
-		}
+	if dis := Disabled(a, opts, ""); dis != nil {
+		return []string{fmt.Sprintf("hooks are turned off in %s (%s); %s will not run Privometry until you remove that setting",
+			dis.Path, dis.Setting, a.DisplayName)}
 	}
 	return nil
 }

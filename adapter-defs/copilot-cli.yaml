@@ -11,6 +11,7 @@ detect:
   processes: [copilot]
   version_cmd: [copilot, --version]
   bypass_flags: [--allow-all-tools, --yolo]
+  process_patterns: ["@github/copilot/"]
 env_overrides:
   - var: COPILOT_HOME
     replaces: "~/.copilot"

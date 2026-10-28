@@ -53,6 +53,9 @@ func (d *Daemon) hook(h ipc.HookRequest) (ipc.Response, error) {
 	if !ok {
 		return ipc.Response{}, fmt.Errorf("%w %q", errUnknownAgent, h.Agent)
 	}
+	if h.Probe == "" {
+		d.noteCaller(h.PPID)
+	}
 	ev, ok := a.Event(h.Event)
 	if !ok {
 		return ipc.Response{}, nil // not an event Privometry handles: no opinion

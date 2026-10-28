@@ -24,18 +24,18 @@ var runtimes = []string{"node", "bun", "deno", "python", "python3"}
 // after it stopped. Command lines are read in memory and dropped; only the
 // agent and the flag are kept. It returns how many events it recorded.
 func (d *Daemon) CheckBypass() (int, error) {
-	procs, err := d.cfg.ProcessArgs()
+	procs, err := d.cfg.Procs.List()
 	if err != nil {
 		return 0, err
 	}
 	now := map[string]bool{}
 	n := 0
-	for _, args := range procs {
-		a, ok := d.agentOf(args)
-		if !ok {
+	for _, p := range procs {
+		a, _, ok := d.agentOf(p.Args)
+		if !ok || len(a.Detect.BypassFlags) == 0 {
 			continue
 		}
-		flag := bypassFlag(args, a.Detect.BypassFlags)
+		flag := bypassFlag(p.Args, a.Detect.BypassFlags)
 		if flag == "" {
 			continue
 		}
@@ -54,23 +54,41 @@ func (d *Daemon) CheckBypass() (int, error) {
 	return n, nil
 }
 
-// agentOf finds the adapter whose process or binary name runs args.
-func (d *Daemon) agentOf(args []string) (registry.Adapter, bool) {
-	prog := progName(args[0])
-	if slices.Contains(runtimes, prog) && len(args) > 1 {
-		prog = progName(args[1])
+// agentOf finds the adapter that runs args: by the program's name among its
+// processes and binaries or, whatever the program is called, by a path
+// fragment from its process_patterns; for script runtimes (node, bun) the
+// script counts as the program. byCLI is false when only a process name
+// matched, which for some agents is their desktop app (Antigravity, Cursor).
+func (d *Daemon) agentOf(args []string) (a registry.Adapter, byCLI bool, ok bool) {
+	if len(args) == 0 {
+		return registry.Adapter{}, false, false
 	}
+	prog := args[0]
+	if slices.Contains(runtimes, progName(prog)) && len(args) > 1 {
+		prog = args[1]
+	}
+	name := progName(prog)
+	slashed := strings.ReplaceAll(prog, `\`, "/")
 	for _, a := range d.cfg.Registry.All() {
-		if len(a.Detect.BypassFlags) == 0 {
-			continue
+		for _, b := range a.Detect.Binaries {
+			if strings.EqualFold(name, b) {
+				return a, true, true
+			}
 		}
-		for _, name := range append(slices.Clone(a.Detect.Processes), a.Detect.Binaries...) {
-			if strings.EqualFold(prog, name) {
-				return a, true
+		for _, pattern := range a.Detect.ProcessPatterns {
+			if strings.Contains(slashed, pattern) {
+				return a, true, true
 			}
 		}
 	}
-	return registry.Adapter{}, false
+	for _, a := range d.cfg.Registry.All() {
+		for _, p := range a.Detect.Processes {
+			if strings.EqualFold(name, p) {
+				return a, false, true
+			}
+		}
+	}
+	return registry.Adapter{}, false, false
 }
 
 func progName(p string) string {

@@ -11,6 +11,7 @@ import (
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/adapters/registry"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/contract"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/daemon"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/events"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/guard"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/platform"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/policy"
@@ -84,4 +85,65 @@ func TestIntegrity(t *testing.T) {
 	if rows, _ := d.Store().Events(timeline.Query{Limit: 1}); rows[0].Event.Type != "config_change" {
 		t.Errorf("reinstall recorded %s", rows[0].Event.Type)
 	}
+}
+
+func TestHooksDisabled(t *testing.T) {
+	home := t.TempDir()
+	d, _ := newDaemonAt(t, home)
+	reg, _ := registry.Load(adapterdefs.FS)
+	claude, _ := reg.Get(contract.AgentProductClaudeCode)
+	env := platform.Env{GOOS: "linux", Home: home, Getenv: func(string) string { return "" }}
+	gopts := guard.Options{Env: env, HookCommand: "/usr/local/bin/privometry-hook", AgentVersion: "2.1.304"}
+	c, err := guard.Install(claude, gopts)
+	if err != nil || c.Apply() != nil {
+		t.Fatal(err)
+	}
+	check := func(want int, why string) {
+		t.Helper()
+		n, err := d.CheckIntegrity()
+		if err != nil || n != want {
+			t.Fatalf("%s: %d events, %v; want %d", why, n, err, want)
+		}
+	}
+	check(0, "first observation")
+
+	// A user setting that turns every hook off: a config change and an alert.
+	settings := filepath.Join(home, ".claude/settings.json")
+	raw, _ := os.ReadFile(settings)
+	os.WriteFile(settings, []byte(`{"disableAllHooks": true,`+string(raw[1:])), 0o644)
+	check(2, "disableAllHooks in user settings")
+	check(0, "still off: reported once")
+	in := integrityOf(t, d, "hooks_disabled")
+	if in.Reason != "setting" || in.Tier != "user" || in.Detail == "" {
+		t.Fatalf("event %+v", in)
+	}
+	if st := guard.Check(claude, gopts); st.State != "disabled" {
+		t.Errorf("guard state %+v", st)
+	}
+
+	// Back on, then off again in a project's local settings: the project is
+	// watched once an agent worked in it, and the file is reported the first
+	// time it is seen.
+	os.WriteFile(settings, raw, 0o644)
+	check(1, "hooks back on: a config change only")
+	project := filepath.Join(home, "src/app")
+	os.MkdirAll(filepath.Join(project, ".claude"), 0o755)
+	os.WriteFile(filepath.Join(project, ".claude/settings.local.json"), []byte(`{"disableAllHooks": true}`), 0o644)
+	hook(t, d, "claude_code", "PreToolUse", fixture(t, "pretooluse-bash-ls.json", func(m map[string]any) { m["cwd"] = project }))
+	check(1, "project settings.local.json")
+	if in := integrityOf(t, d, "hooks_disabled"); in.Tier != "project" {
+		t.Fatalf("project event %+v", in)
+	}
+}
+
+// integrityOf returns the newest integrity event with the check.
+func integrityOf(t *testing.T, d *daemon.Daemon, check string) *events.Integrity {
+	t.Helper()
+	for _, r := range validEvents(t, d) {
+		if in := r.Event.Integrity; in != nil && string(in.Check) == check {
+			return in
+		}
+	}
+	t.Fatalf("no %s event", check)
+	return nil
 }

@@ -49,6 +49,23 @@ func (d *Daemon) noteRoot(root string) {
 	d.mu.Unlock()
 }
 
+// recentRoots returns the workspaces agents worked in recently, sorted, and
+// forgets older ones.
+func (d *Daemon) recentRoots() []string {
+	d.mu.Lock()
+	var roots []string
+	for r, at := range d.roots {
+		if d.cfg.Now().Sub(at) < rootTTL {
+			roots = append(roots, r)
+		} else {
+			delete(d.roots, r)
+		}
+	}
+	d.mu.Unlock()
+	sort.Strings(roots)
+	return roots
+}
+
 // noteAgentWrite records that an agent is about to write a memory file.
 func (d *Daemon) noteAgentWrite(path string) {
 	d.mu.Lock()
@@ -73,18 +90,7 @@ func (d *Daemon) noteMemoryWrites(actions []intent.Action, ctx intent.Context) {
 // Nested project files (a CLAUDE.md in a subfolder) are checked when an
 // agent writes them, not by the watcher.
 func (d *Daemon) memoryList() []memoryFile {
-	d.mu.Lock()
-	var roots []string
-	for r, at := range d.roots {
-		if d.cfg.Now().Sub(at) < rootTTL {
-			roots = append(roots, r)
-		} else {
-			delete(d.roots, r)
-		}
-	}
-	d.mu.Unlock()
-	sort.Strings(roots)
-
+	roots := d.recentRoots()
 	var out []memoryFile
 	seen := map[string]bool{}
 	for _, a := range d.cfg.Registry.All() {

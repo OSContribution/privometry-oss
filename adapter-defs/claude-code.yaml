@@ -11,6 +11,9 @@ detect:
   processes: [claude]
   version_cmd: [claude, --version]
   bypass_flags: [--dangerously-skip-permissions, --permission-mode bypassPermissions]
+  # The npm package and the native installer, whatever the program is called.
+  process_patterns: ["@anthropic-ai/claude-code/", "claude/versions/"]
+  no_session_args: ["mcp serve"]
 env_overrides:
   - var: CLAUDE_CONFIG_DIR
     replaces: "~/.claude"
@@ -125,6 +128,9 @@ hooks:
     - agent: cursor
       default_enabled: true
       setting: Third-Party Imports
+  # Turns off every hook, Privometry's included, in whichever settings file sets it.
+  disable_settings:
+    - { pointer: /disableAllHooks, value: true }
   events:
     - name: PreToolUse
       role: pre_tool

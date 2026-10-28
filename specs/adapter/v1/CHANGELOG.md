@@ -1,5 +1,11 @@
 # adapter/v1
 
+## 1.0.0-draft.7 (2026-10-28)
+
+- `hooks.disable_settings`: JSON pointers and values that turn all of an agent's hooks off, read in every JSON and TOML config tier that holds settings or hooks. The shipped definitions list Claude Code `/disableAllHooks: true` and Codex `/features/hooks: false` and `/features/codex_hooks: false`; Gemini CLI, Copilot CLI and Cursor stay empty until confirmed on real agents.
+- `detect.process_patterns`: path fragments that identify an agent whatever its program is called (`@anthropic-ai/claude-code/`, `claude/versions/`, `@openai/codex/`, `@google/gemini-cli/`, `@github/copilot/`), matched against the program and a script runtime's script.
+- `detect.no_session_args`: long-running commands that start no session (`claude mcp serve`, `codex mcp-server`), never reported as silent agents.
+
 ## 1.0.0-draft.6 (2026-10-28)
 
 - `detect.bypass_flags`: flags that make the agent skip its permission prompts or its hooks (an entry may name a value, matched as the next argument or after `=`). The shipped definitions list Claude Code `--dangerously-skip-permissions` and `--permission-mode bypassPermissions`, Codex `--dangerously-bypass-approvals-and-sandbox`, Gemini CLI `--yolo`, `-y` and `--approval-mode yolo`, Copilot CLI `--allow-all-tools` and `--yolo`, and Antigravity `--dangerously-skip-permissions`.

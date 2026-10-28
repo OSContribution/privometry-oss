@@ -737,3 +737,24 @@ func TestAntigravity(t *testing.T) {
 	}
 	assertNoSecrets(t, res)
 }
+
+// An agent running under another name (the native installer runs a versioned
+// binary) is found by its process pattern, and only the pattern is evidence.
+func TestProcessPatternDetection(t *testing.T) {
+	reg, _ := registry.Load(adapterdefs.FS)
+	agents, err := discover.Run(reg, discover.Options{
+		Env:      platform.Env{GOOS: "linux", Home: "/home/dev", Getenv: func(string) string { return "" }},
+		Machine:  true,
+		Root:     t.TempDir(),
+		LookPath: func(string) (string, error) { return "", exec.ErrNotFound },
+		ListProcesses: func() ([]string, error) {
+			return []string{"/home/dev/.local/share/claude/versions/2.1.304"}, nil
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(agents) != 1 || agents[0].Product != contract.AgentProductClaudeCode || !slices.Equal(agents[0].Evidence, []string{"process claude/versions/"}) {
+		t.Fatalf("agents = %+v", agents)
+	}
+}
