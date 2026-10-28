@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="referrer" content="no-referrer">
 <title>Privometry local guard</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='1' y='1' width='22' height='22' rx='6' fill='%2314161B'/%3E%3Ccircle cx='8' cy='12' r='2.6' fill='none' stroke='%23fff' stroke-width='1.6'/%3E%3Cpath d='M12.6 12 L15 9.6 L17.4 12 L15 14.4 Z' fill='%23E89B00'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20width=%2236%22%20height=%2236%22%20viewBox=%220%200%2036%2036%22%20fill=%22none%22%3E%20%3Crect%20width=%2236%22%20height=%2236%22%20rx=%228%22%20fill=%22%23315CF5%22/%3E%20%3Cpath%20d=%22M11%2027.1V15.9a7%207%200%200%201%2014%200v11.2%22%20stroke=%22%23FFFFFF%22%20stroke-width=%223.2%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22/%3E%20%3Ccircle%20cx=%2218%22%20cy=%2223.88%22%20r=%222.8%22%20fill=%22%23FFFFFF%22/%3E%20%3C/svg%3E">
 <link rel="stylesheet" href="style.css">
 <script src="app.js" defer></script>
 </head>
@@ -15,7 +15,7 @@
   <div class="shell" id="shell">
     <aside class="sidebar" id="sidebar" aria-label="Local guard navigation">
       <div class="sb-brand">
-        <svg width="28" height="28" viewBox="0 0 24 24" aria-hidden="true"><rect x="1" y="1" width="22" height="22" rx="6" fill="var(--ink)"/><circle cx="8" cy="12" r="2.6" fill="none" stroke="var(--surface)" stroke-width="1.6"/><path d="M12.6 12 L15 9.6 L17.4 12 L15 14.4 Z" fill="var(--ask-glyph)"/></svg>
+        <svg class="mark" width="28" height="28" viewBox="0 0 36 36" fill="none" aria-hidden="true"><path d="M8 31V15a10 10 0 0 1 20 0v16" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="18" cy="26.4" r="3.6" fill="currentColor"/></svg>
         <div><b>Privometry</b><small id="host">on this machine</small></div>
       </div>
       <div class="sb-status" id="status" role="status"></div>
@@ -41,7 +41,7 @@
     <div class="main" id="scroller">
       <div class="mbar">
         <button type="button" class="x" id="menu" aria-label="Open menu"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
-        <span class="logo"><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><rect x="1" y="1" width="22" height="22" rx="6" fill="var(--ink)"/><circle cx="8" cy="12" r="2.6" fill="none" stroke="var(--surface)" stroke-width="1.6"/><path d="M12.6 12 L15 9.6 L17.4 12 L15 14.4 Z" fill="var(--ask-glyph)"/></svg>Privometry</span>
+        <span class="logo"><svg class="mark" width="24" height="24" viewBox="0 0 36 36" fill="none" aria-hidden="true"><path d="M8 31V15a10 10 0 0 1 20 0v16" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="18" cy="26.4" r="3.6" fill="currentColor"/></svg>Privometry</span>
         <span id="mstatus" class="mstatus"></span>
       </div>
       <main class="page" id="main" tabindex="-1"></main>
