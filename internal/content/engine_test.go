@@ -65,6 +65,24 @@ func TestCredentialFindings(t *testing.T) {
 	if none := engine(t, "").Scan(content.SourceActionArgument, text); none[0].Fingerprint != "" {
 		t.Error("no salt, no fingerprint")
 	}
+
+	// With the organization's hash key, two devices with different salts agree.
+	org := []byte(strings.Repeat("o", 32))
+	other := engine(t, "another-device")
+	for _, x := range []*content.Engine{e, other} {
+		x.SetFingerprintKey(org, "hk_01JA0000000000000000000001")
+	}
+	fa, fb := e.Scan(content.SourceActionArgument, text)[0], other.Scan(content.SourceActionArgument, text)[0]
+	if fa.Fingerprint != fb.Fingerprint || fa.FingerprintKey != "hk_01JA0000000000000000000001" || fa.Fingerprint == f.Fingerprint {
+		t.Errorf("organization fingerprints: %q %q (%s)", fa.Fingerprint, fb.Fingerprint, fa.FingerprintKey)
+	}
+	if e.Hash("/home/dev/.env") == other.Hash("/home/dev/.env") {
+		t.Error("path hashes stay on each device's salt")
+	}
+	e.SetFingerprintKey(nil, "")
+	if back := e.Scan(content.SourceActionArgument, text)[0]; back.Fingerprint != f.Fingerprint || back.FingerprintKey != "" || e.FingerprintKeyID() != "" {
+		t.Errorf("back to the salt: %+v", back)
+	}
 }
 
 func TestSourcesAndSummary(t *testing.T) {

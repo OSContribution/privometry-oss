@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Privometry edge API
-  version: 1.0.0-draft.1
+  version: 1.0.0-draft.8
   summary: Everything an enrolled Privometry sensor needs from the cloud.
   description: |
     Regional API used by the edge daemon. Every endpoint except enrollment,
@@ -44,6 +44,20 @@ paths:
       operationId: enroll
       tags: [enrollment]
       summary: Exchange a one-time enrollment token and a CSR for a device certificate.
+      description: |
+        The certificate is for the CSR's key (Ed25519 or P-256), valid 30 days,
+        for client authentication only. Its subject common name is the
+        device_id, and it carries the URI SANs urn:privometry:device:<device_id>
+        and urn:privometry:org:<org_id>. certificate holds the leaf, then the
+        device CA. A retry with the same token and the same CSR key returns the
+        same device even after the token's last use, so a lost response does not
+        strand the device.
+
+        Enrollment is refused (403) with not-entitled when the organization's
+        edition has no cloud_sync, and with seat-limit-reached when more of its
+        developers were active than it has seats for longer than the seat grace
+        period (entitlements/v1 feature-registry editions). Devices already
+        enrolled keep working.
       security:
         - enrollmentToken: []
       parameters:
@@ -56,7 +70,7 @@ paths:
               $ref: 'messages.schema.json#/$defs/EnrollRequest'
       responses:
         '201':
-          description: Enrolled. The sensor fetches its first bundle next and uploads events buffered since install.
+          description: Enrolled. The sensor keeps key_set (the region's policy and license keys), fetches its first bundle next and uploads events buffered since install.
           content:
             application/json:
               schema:
@@ -99,6 +113,16 @@ paths:
       operationId: getBundle
       tags: [policy]
       summary: Latest signed policy bundle, with entitlements and catalog.
+      description: |
+        The bundle for the device's workspace when that workspace has policies
+        of its own, else the organization's; both carry the organization's
+        policies and share version numbers, so a device that moves between
+        workspaces never sees a version go back. A bundle within 7 days of
+        expiring is re-signed as a new version on request. The device verifies
+        the envelope with the policy key from the key set it got at enrollment,
+        checks org_id is its own, refuses a version lower than the one it
+        holds and a bundle that has already expired, and keeps enforcing the
+        bundle it holds when a new one is refused.
       parameters:
         - name: current
           in: query
@@ -124,6 +148,21 @@ paths:
       operationId: uploadEvents
       tags: [telemetry]
       summary: Upload up to 500 redacted events or 1 MB gzip.
+      description: |
+        Events go up in device_seq order and are stored as sent. Before upload
+        the sensor sets org_id and device.device_id to its enrollment's,
+        user.user_id to the person it is enrolled for (if any), and replaces
+        user.local_user with hmac-sha256:<hex>, keyed by the organization's
+        hash key, marking it hashed in redaction.
+
+        The server accepts, counts as a duplicate (an event_id it already has),
+        or rejects each event. Rejected events are dropped by the sensor and
+        never retried; their problem types are:
+        - event-invalid: not a valid privometry.event/v1 document.
+        - event-not-from-device: org_id or device.device_id is not the
+          certificate's.
+        - secret-detected: a field holds what looks like an unredacted secret
+          (the server applies the same recognizers as the sensor's redaction).
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
         - name: Content-Encoding
@@ -156,6 +195,10 @@ paths:
       operationId: uploadInventory
       tags: [telemetry]
       summary: Full scan snapshot; replaces the device's previous inventory.
+      description: |
+        The sensor sends one after enrolling, once a day, and when a rescan
+        command asks. Items carry names, versions, tiers and, for MCP servers,
+        the package or host; never command lines, paths or values.
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
@@ -183,6 +226,12 @@ paths:
       operationId: heartbeat
       tags: [telemetry]
       summary: Sensor health every 60 seconds; the response carries commands such as the kill switch.
+      description: |
+        The server records the device's last contact, sensor version, bundle
+        and hook state; a device without a heartbeat for a day is stale. When
+        the device does not report the newest bundle for it, the response
+        carries refresh_bundle until the device acknowledges it, so a policy
+        change reaches devices within one heartbeat.
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
@@ -209,6 +258,13 @@ paths:
       operationId: createApproval
       tags: [approvals]
       summary: Route an ask decision to Slack or Teams.
+      description: |
+        Sent in the background after the sensor has already answered the
+        hook with deny and a message (privometry-oss
+        docs/spikes/remote-approvals.md): a hook cannot wait for a person. The
+        sensor long-polls the approval; if it is approved, the next attempt of
+        the same action in the same session is allowed once. No answer by
+        expires_at is timeout, which denies.
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:

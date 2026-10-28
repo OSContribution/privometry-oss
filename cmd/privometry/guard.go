@@ -10,7 +10,6 @@ import (
 	"text/tabwriter"
 	"time"
 
-	adapterdefs "gitlab.com/cn-solutions/privometry/privometry-oss/adapter-defs"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/adapters/registry"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/contract"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/guard"
@@ -56,7 +55,7 @@ func guardCmd(args []string, stdout, stderr io.Writer) int {
 	if err != nil {
 		return fail(stderr, err)
 	}
-	reg, err := registry.Load(adapterdefs.FS)
+	reg, err := loadAdapters(env)
 	if err != nil {
 		return fail(stderr, err)
 	}

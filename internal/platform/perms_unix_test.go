@@ -67,3 +67,17 @@ func TestWritableByOthers(t *testing.T) {
 		}
 	}
 }
+
+// Agents may run hooks without HOME; the home folder then comes from the
+// account database.
+func TestCurrentEnvWithoutHome(t *testing.T) {
+	want, err := os.UserHomeDir()
+	if err != nil {
+		t.Skip("no home folder here")
+	}
+	t.Setenv("HOME", "")
+	env, err := CurrentEnv()
+	if err != nil || env.Home != want {
+		t.Errorf("CurrentEnv without HOME: %q, %v; want %q", env.Home, err, want)
+	}
+}

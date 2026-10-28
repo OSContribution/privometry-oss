@@ -10,6 +10,7 @@ detect:
   binaries: [claude]
   processes: [claude]
   version_cmd: [claude, --version]
+  bypass_flags: [--dangerously-skip-permissions, --permission-mode bypassPermissions]
 env_overrides:
   - var: CLAUDE_CONFIG_DIR
     replaces: "~/.claude"

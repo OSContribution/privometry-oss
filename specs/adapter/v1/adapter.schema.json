@@ -72,6 +72,15 @@
         },
         "version_cmd": {
           "$ref": "#/$defs/string_list"
+        },
+        "bypass_flags": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^-{1,2}[A-Za-z][A-Za-z0-9-]*( [A-Za-z0-9_-]+)?$"
+          },
+          "description": "Command-line flags that make the agent skip its permission prompts or its hooks, such as --dangerously-skip-permissions. An entry may name a value (--approval-mode yolo), matched as the next argument or after =. The daemon reports a running agent started with one as an integrity event (hooks_bypassed), recording the flag and never the command line."
         }
       },
       "anyOf": [
@@ -499,6 +508,240 @@
           }
         }
       }
+    },
+    {
+      "description": "Gemini CLI reads a BeforeTool decision from a top-level decision field and cannot ask.",
+      "if": {
+        "properties": {
+          "hooks": {
+            "properties": {
+              "registration": {
+                "const": "gemini_settings"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "hooks": {
+            "properties": {
+              "events": {
+                "items": {
+                  "if": {
+                    "properties": {
+                      "role": {
+                        "enum": [
+                          "pre_tool",
+                          "pre_shell",
+                          "pre_mcp",
+                          "pre_file_read"
+                        ]
+                      }
+                    }
+                  },
+                  "then": {
+                    "properties": {
+                      "responses": {
+                        "propertyNames": {
+                          "enum": [
+                            "allow",
+                            "ask",
+                            "deny"
+                          ]
+                        },
+                        "additionalProperties": {
+                          "properties": {
+                            "stdout": {
+                              "oneOf": [
+                                {
+                                  "type": "null"
+                                },
+                                {
+                                  "type": "object",
+                                  "required": [
+                                    "decision"
+                                  ],
+                                  "properties": {
+                                    "decision": {
+                                      "enum": [
+                                        "allow",
+                                        "deny",
+                                        "block"
+                                      ]
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "Copilot CLI reads a preToolUse decision from a top-level permissionDecision field.",
+      "if": {
+        "properties": {
+          "hooks": {
+            "properties": {
+              "registration": {
+                "const": "copilot_hooks"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "hooks": {
+            "properties": {
+              "events": {
+                "items": {
+                  "if": {
+                    "properties": {
+                      "role": {
+                        "enum": [
+                          "pre_tool",
+                          "pre_shell",
+                          "pre_mcp",
+                          "pre_file_read"
+                        ]
+                      }
+                    }
+                  },
+                  "then": {
+                    "properties": {
+                      "responses": {
+                        "propertyNames": {
+                          "enum": [
+                            "allow",
+                            "ask",
+                            "deny"
+                          ]
+                        },
+                        "additionalProperties": {
+                          "properties": {
+                            "stdout": {
+                              "oneOf": [
+                                {
+                                  "type": "null"
+                                },
+                                {
+                                  "type": "object",
+                                  "required": [
+                                    "permissionDecision"
+                                  ],
+                                  "properties": {
+                                    "permissionDecision": {
+                                      "enum": [
+                                        "allow",
+                                        "ask",
+                                        "deny"
+                                      ]
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "Antigravity reads a PreToolUse decision from a top-level decision field.",
+      "if": {
+        "properties": {
+          "hooks": {
+            "properties": {
+              "registration": {
+                "const": "antigravity_hooks"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "hooks": {
+            "properties": {
+              "events": {
+                "items": {
+                  "if": {
+                    "properties": {
+                      "role": {
+                        "enum": [
+                          "pre_tool",
+                          "pre_shell",
+                          "pre_mcp",
+                          "pre_file_read"
+                        ]
+                      }
+                    }
+                  },
+                  "then": {
+                    "properties": {
+                      "responses": {
+                        "propertyNames": {
+                          "enum": [
+                            "allow",
+                            "ask",
+                            "deny"
+                          ]
+                        },
+                        "additionalProperties": {
+                          "properties": {
+                            "stdout": {
+                              "oneOf": [
+                                {
+                                  "type": "null"
+                                },
+                                {
+                                  "type": "object",
+                                  "required": [
+                                    "decision"
+                                  ],
+                                  "properties": {
+                                    "decision": {
+                                      "enum": [
+                                        "allow",
+                                        "auto_approve",
+                                        "deny",
+                                        "ask",
+                                        "force_ask",
+                                        "deny_unless_prior_grant"
+                                      ]
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   ],
   "$defs": {
@@ -594,9 +837,12 @@
           "enum": [
             "claude_settings",
             "cursor_hooks",
-            "codex_hooks"
+            "codex_hooks",
+            "gemini_settings",
+            "copilot_hooks",
+            "antigravity_hooks"
           ],
-          "description": "Layout of the hook registration file; selects the writer guard install uses."
+          "description": "Layout of the hook registration file; selects the writer guard install uses. gemini_settings: Gemini CLI settings.json, grouped like Claude Code with timeouts in milliseconds. copilot_hooks: a hooks file of Copilot CLI's own (version 1, camelCase events, one entry per command). antigravity_hooks: Antigravity's hooks.json, where each top-level key is a hook name holding event keys; Privometry writes the name privometry. PreToolUse and PostToolUse take matcher groups, other events a list of handlers; timeouts in seconds."
         },
         "install": {
           "type": "object",
@@ -735,6 +981,12 @@
         "matcher": {
           "type": "string",
           "description": "Matcher in the agent's own syntax, written verbatim into the registration."
+        },
+        "timeout_seconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 600,
+          "description": "Overrides hooks.timeout_seconds for this event, for agents that cap some events (Codex limits SessionEnd hooks to 3 seconds)."
         },
         "verdicts": {
           "type": "array",

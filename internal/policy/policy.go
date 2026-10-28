@@ -42,6 +42,10 @@ type Input struct {
 	// Content is what the detectors found in the action's arguments or
 	// written content; it applies to every request the action becomes.
 	Content Content
+	// CatalogStatus is what the organization's catalog says about the MCP
+	// server an mcp_call goes to (approved, unapproved, blocked or unknown);
+	// empty when the device has no catalog.
+	CatalogStatus string
 }
 
 // Content is the detectors' findings for one action, as policy facts.
@@ -94,6 +98,9 @@ func (p *Policy) Explain(in Input) (Decision, []Step, error) {
 	for i, r := range reqs {
 		r.Facts.UntrustedInputSeen = in.UntrustedInputSeen
 		r.Facts.InjectionSeen = in.InjectionSeen
+		if r.Action == "mcp_call" && in.CatalogStatus != "" {
+			r.Facts.CatalogStatus = in.CatalogStatus
+		}
 		r.Facts.SecretTypes, r.Facts.Injection, r.Facts.HiddenContent = in.Content.SecretTypes, in.Content.Injection, in.Content.HiddenContent
 		d, err := p.eng.Decide(engine.Request{Agent: in.Agent, Repo: in.Repo, Action: r.Action, Facts: r.Facts})
 		if err != nil {

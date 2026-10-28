@@ -39,7 +39,9 @@ type Check struct {
 	Help     string
 }
 
-// Checks lists every check an adapter can enable, in report order.
+// Checks lists every check, in report order. Adapters enable all but
+// agent_file_changed, which privometry scan --changed raises for changed
+// agent files in a merge or pull request.
 var Checks = []Check{
 	{"writable_managed_config", "Managed config is writable by other users", contract.RiskCritical,
 		"Managed settings override everything a developer configures. If other users can write them, they can install hooks or MCP servers for everyone."},
@@ -57,6 +59,8 @@ var Checks = []Check{
 		"The server is launched from a package without a fixed version, so a new release, or a hijacked one, runs without review."},
 	{"managed_hooks_only_off", "Managed hooks can be bypassed", contract.RiskLow,
 		"Managed settings exist but do not restrict hooks to the managed tier, so users and repos can add their own."},
+	{"agent_file_changed", "Change to a file coding agents read", contract.RiskMedium,
+		"The change adds, edits or deletes a repo file coding agents act on: hooks, permissions or MCP servers (medium), instructions, rules or skills (low), or the repo's Privometry policy (medium). Review it like code, because agents follow it without asking."},
 }
 
 // CheckByID returns a check's metadata.
@@ -150,6 +154,12 @@ func autoApprove(a discover.Agent, _ platform.Env, _ string) []Finding {
 			out = append(out, allowsAllShell(c, "/permissions/allow", "Bash", "Claude Code")...)
 		case contract.AgentProductCursor:
 			out = append(out, allowsAllShell(c, "/permissions/allow", "Shell", "Cursor")...)
+		case contract.AgentProductAntigravity:
+			// permissions.allow "command(*)" runs every command without asking.
+			out = append(out, allowsAllShell(c, "/permissions/allow", "command", "Antigravity")...)
+		case contract.AgentProductGeminiCLI:
+			// tools.allowed bypasses confirmation; run_shell_command alone covers every command.
+			out = append(out, allowsAllShell(c, "/tools/allowed", "run_shell_command", "Gemini CLI")...)
 		case contract.AgentProductCodexCLI:
 			out = append(out, codexSetting(c, "approval_policy", "never",
 				"Codex never asks before running commands (approval_policy = \"never\").",
@@ -317,6 +327,13 @@ func secretInConfig(a discover.Agent, _ platform.Env, _ string) []Finding {
 			kinds := redact.SecretKinds(value)
 			if len(kinds) == 0 && sensitiveKey(key) && isLiteralSecret(value) {
 				kinds = []string{"secret"}
+			}
+			if len(kinds) == 0 && strings.EqualFold(key, "authorization") {
+				// An MCP server's header: "Bearer <token>" with the token written out.
+				if scheme, cred, ok := strings.Cut(strings.TrimSpace(value), " "); ok && isLiteralSecret(cred) &&
+					(strings.EqualFold(scheme, "bearer") || strings.EqualFold(scheme, "basic") || strings.EqualFold(scheme, "token")) {
+					kinds = []string{"token"}
+				}
 			}
 			if len(kinds) == 0 {
 				return

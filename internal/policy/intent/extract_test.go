@@ -154,3 +154,45 @@ func TestWorkspaceRoot(t *testing.T) {
 		}
 	}
 }
+
+func TestWindowsPaths(t *testing.T) {
+	win := Context{Cwd: `C:\Users\dev\work\api`, Home: `C:\Users\dev`, RepoRoot: `C:\Users\dev\work\api`,
+		TempDirs: []string{`C:\Users\dev\AppData\Local\Temp`}}
+	cases := []struct {
+		a    Action
+		want string
+	}{
+		{Action{Kind: "file_read", Path: `C:\Users\dev\work\api\main.go`}, "none class=repo"},
+		{Action{Kind: "file_read", Path: `c:\users\dev\work\api\.env`}, "high intent=secret_read class=repo"},
+		{Action{Kind: "file_read", Path: `C:\Users\dev\.ssh\id_ed25519`}, "high intent=secret_read class=secret_store"},
+		{Action{Kind: "file_read", Path: `C:\Users\dev\.ssh\known_hosts`}, "low class=secret_store"},
+		{Action{Kind: "file_read", Path: `C:\Users\dev\AppData\Roaming\GitHub CLI\hosts.yml`}, "high intent=secret_read class=secret_store"},
+		{Action{Kind: "file_write", Path: `src\app.ts`}, "low class=repo"},
+		{Action{Kind: "file_write", Path: `C:\Users\dev\notes\todo.md`}, "medium class=home"},
+		{Action{Kind: "file_write", Path: `C:\Users\dev\AppData\Local\Temp\x.txt`}, "low class=temp"},
+		{Action{Kind: "file_write", Path: `C:\Windows\System32\drivers\etc\hosts`}, "high class=system"},
+		{Action{Kind: "file_write", Path: `D:\Program Files\Tool\cfg.ini`}, "high class=system"},
+	}
+	for _, tc := range cases {
+		reqs := Extract(tc.a, win)
+		if len(reqs) != 1 || summary(reqs[0]) != tc.want {
+			t.Errorf("%+v: got %v, want %s", tc.a, summaries(reqs), tc.want)
+		}
+	}
+	for _, c := range []struct{ cwd, want string }{
+		{`C:\Users\dev\scratch\tool`, `C:\Users\dev\scratch\tool`},
+		{`C:\Users\dev`, ""},
+		{`C:\Users\dev\.ssh`, ""},
+		{`D:\src`, ""},
+	} {
+		if got := WorkspaceRoot(c.cwd, `C:\Users\dev`, ""); got != c.want {
+			t.Errorf("WorkspaceRoot(%s) = %q, want %q", c.cwd, got, c.want)
+		}
+	}
+	if abs, ok := win.resolve(`%USERPROFILE%\.aws\credentials`); !ok || abs != "C:/Users/dev/.aws/credentials" {
+		t.Errorf("resolve %%USERPROFILE%%: %q %v", abs, ok)
+	}
+	if _, ok := win.resolve(`%APPDATA%\x`); ok {
+		t.Error("another variable cannot be resolved")
+	}
+}

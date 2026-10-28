@@ -326,3 +326,161 @@ func TestIsPrivometry(t *testing.T) {
 		}
 	}
 }
+
+func TestInstallOnWindowsQuotesThePath(t *testing.T) {
+	a, opts, _ := setup(t, "", nil)
+	opts.Env = platform.Env{GOOS: "windows", Home: `C:\Users\dev`, Getenv: func(string) string { return "" }}
+	opts.HookCommand = `C:\Users\dev\AppData\Local\Programs\Privometry\privometry-hook.exe`
+	c, err := Install(a, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Path != `C:\Users\dev\.claude\settings.json` {
+		t.Errorf("path %s", c.Path)
+	}
+	want := `"C:\\Users\\dev\\AppData\\Local\\Programs\\Privometry\\privometry-hook.exe\" claude_code PreToolUse`
+	if !strings.Contains(string(c.After), want) {
+		t.Errorf("command not double-quoted:\n%s", c.After)
+	}
+	if err := c.Apply(); err != nil {
+		t.Fatal(err)
+	}
+	if s := Check(a, opts); s.State != "installed" {
+		t.Errorf("check after install: %+v", s)
+	}
+}
+
+func TestInstallGemini(t *testing.T) {
+	a, opts, path := agentSetup(t, contract.AgentProductGeminiCLI, "home/dev/.gemini/settings.json",
+		`{"theme": "Dracula", "hooks": {"BeforeTool": [{"matcher": "write_file", "hooks": [{"type": "command", "command": "./lint.sh"}]}]}}`, nil)
+	c, err := Install(a, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := c.Apply(); err != nil {
+		t.Fatal(err)
+	}
+	raw, _ := os.ReadFile(path)
+	doc := parse(t, raw)
+	if doc["theme"] != "Dracula" {
+		t.Error("the user's settings were not kept")
+	}
+	before := doc["hooks"].(map[string]any)["BeforeTool"].([]any)
+	if len(before) != 2 {
+		t.Fatalf("BeforeTool groups: %v", before)
+	}
+	ours := before[1].(map[string]any)
+	entry := ours["hooks"].([]any)[0].(map[string]any)
+	if ours["matcher"] != ".*" || entry["name"] != "privometry" || entry["type"] != "command" ||
+		entry["command"] != "/usr/local/bin/privometry-hook gemini_cli BeforeTool" || entry["timeout"] != float64(10000) {
+		t.Errorf("BeforeTool entry: %v", ours)
+	}
+	if _, ok := doc["hooks"].(map[string]any)["SessionStart"].([]any)[0].(map[string]any)["matcher"]; ok {
+		t.Error("lifecycle events take no matcher")
+	}
+	if s := Check(a, opts); s.State != "installed" || s.FailClosed {
+		t.Errorf("check: %+v", s)
+	}
+	u, err := Uninstall(a, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	u.Apply()
+	raw, _ = os.ReadFile(path)
+	if strings.Contains(string(raw), "privometry") || !strings.Contains(string(raw), "./lint.sh") {
+		t.Errorf("after uninstall:\n%s", raw)
+	}
+}
+
+func TestInstallCopilot(t *testing.T) {
+	a, opts, path := agentSetup(t, contract.AgentProductCopilotCLI, "home/dev/.copilot/hooks/privometry.json", "", nil)
+	c, err := Install(a, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Path != "/home/dev/.copilot/hooks/privometry.json" {
+		t.Errorf("path %s", c.Path)
+	}
+	if err := c.Apply(); err != nil {
+		t.Fatal(err)
+	}
+	raw, _ := os.ReadFile(path)
+	doc := parse(t, raw)
+	pre := doc["hooks"].(map[string]any)["preToolUse"].([]any)[0].(map[string]any)
+	if doc["version"] != float64(1) || pre["type"] != "command" || pre["bash"] != "/usr/local/bin/privometry-hook copilot_cli preToolUse" ||
+		pre["timeoutSec"] != float64(10) || pre["command"] != nil {
+		t.Errorf("preToolUse entry: %s", raw)
+	}
+	if s := Check(a, opts); s.State != "installed" {
+		t.Errorf("check: %+v", s)
+	}
+	u, err := Uninstall(a, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := u.Apply(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(path); !errors.Is(err, os.ErrNotExist) {
+		t.Error("Privometry's own hooks file is removed on uninstall")
+	}
+
+	// COPILOT_HOME moves the file; on Windows the command is PowerShell.
+	a, opts, _ = agentSetup(t, contract.AgentProductCopilotCLI, "", "", map[string]string{"COPILOT_HOME": "/srv/copilot"})
+	if c, _ := Install(a, opts); c.Path != "/srv/copilot/hooks/privometry.json" {
+		t.Errorf("COPILOT_HOME: %s", c.Path)
+	}
+	opts.Env = platform.Env{GOOS: "windows", Home: `C:\Users\dev`, Getenv: func(string) string { return "" }}
+	opts.HookCommand = `C:\Program Files\Privometry\privometry-hook.exe`
+	c, _ = Install(a, opts)
+	if !strings.Contains(string(c.After), `"powershell": "& \"C:\\Program Files\\Privometry\\privometry-hook.exe\" copilot_cli preToolUse"`) {
+		t.Errorf("windows entry:\n%s", c.After)
+	}
+	c.Apply()
+	if s := Check(a, opts); s.State != "installed" {
+		t.Errorf("windows check: %+v", s)
+	}
+}
+
+func TestInstallAntigravity(t *testing.T) {
+	a, opts, path := agentSetup(t, contract.AgentProductAntigravity, "home/dev/.gemini/config/hooks.json",
+		`{"my-linter": {"PreToolUse": [{"matcher": "run_command", "hooks": [{"command": "./lint.sh", "timeout": 10}]}]}}`, nil)
+	c, err := Install(a, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := c.Apply(); err != nil {
+		t.Fatal(err)
+	}
+	raw, _ := os.ReadFile(path)
+	doc := parse(t, raw)
+	if _, ok := doc["my-linter"]; !ok {
+		t.Error("the user's own hook was not kept")
+	}
+	ours := doc["privometry"].(map[string]any)
+	pre := ours["PreToolUse"].([]any)[0].(map[string]any)
+	entry := pre["hooks"].([]any)[0].(map[string]any)
+	if pre["matcher"] != "*" || entry["type"] != "command" || entry["command"] != "/usr/local/bin/privometry-hook antigravity PreToolUse" || entry["timeout"] != float64(10) {
+		t.Errorf("PreToolUse: %v", pre)
+	}
+	start := ours["SessionStart"].([]any)[0].(map[string]any)
+	if start["command"] != "/usr/local/bin/privometry-hook antigravity SessionStart" || start["hooks"] != nil {
+		t.Errorf("SessionStart takes handlers, not groups: %v", start)
+	}
+	if s := Check(a, opts); s.State != "installed" {
+		t.Errorf("check: %+v", s)
+	}
+	again, _ := Install(a, opts)
+	if again.Changed() {
+		t.Error("installing twice changes the file")
+	}
+	u, err := Uninstall(a, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	u.Apply()
+	raw, _ = os.ReadFile(path)
+	if strings.Contains(string(raw), "privometry") || !strings.Contains(string(raw), "./lint.sh") {
+		t.Errorf("after uninstall:\n%s", raw)
+	}
+}

@@ -167,6 +167,72 @@
       "reason": "verifier expects a license, envelope holds a bundle"
     },
     {
+      "name": "communitypack-detectors-valid",
+      "check": "artifact",
+      "envelope": "envelopes/communitypack-detectors-valid.json",
+      "keyset": "publisher-keys.json",
+      "role": "publisher",
+      "payload_type": "application/vnd.privometry.communitypack+json",
+      "verify_at": "2026-10-23T12:00:00.000Z",
+      "expect": "valid",
+      "reason": "community detector pack signed by its publisher's key"
+    },
+    {
+      "name": "communitypack-rules-valid",
+      "check": "artifact",
+      "envelope": "envelopes/communitypack-rules-valid.json",
+      "keyset": "publisher-keys.json",
+      "role": "publisher",
+      "payload_type": "application/vnd.privometry.communitypack+json",
+      "verify_at": "2026-10-23T12:00:00.000Z",
+      "expect": "valid",
+      "reason": "community rule pack signed by its publisher's key"
+    },
+    {
+      "name": "communitypack-signed-by-release-key",
+      "check": "artifact",
+      "envelope": "envelopes/communitypack-signed-by-release-key.json",
+      "keyset": "keyset-v2.json",
+      "role": "publisher",
+      "payload_type": "application/vnd.privometry.communitypack+json",
+      "verify_at": "2026-10-23T12:00:00.000Z",
+      "expect": "invalid",
+      "reason": "trusted key, wrong role: community packs are signed by publisher keys"
+    },
+    {
+      "name": "communitypack-signed-by-unknown-key",
+      "check": "artifact",
+      "envelope": "envelopes/communitypack-signed-by-unknown-key.json",
+      "keyset": "publisher-keys.json",
+      "role": "publisher",
+      "payload_type": "application/vnd.privometry.communitypack+json",
+      "verify_at": "2026-10-23T12:00:00.000Z",
+      "expect": "invalid",
+      "reason": "key not among the trusted publisher keys"
+    },
+    {
+      "name": "detectorpacks-signed-by-feed-key",
+      "check": "artifact",
+      "envelope": "envelopes/detectorpacks-signed-by-feed-key.json",
+      "keyset": "keyset-v2.json",
+      "role": "release",
+      "payload_type": "application/vnd.privometry.detectorpacks+json",
+      "verify_at": "2026-10-23T12:00:00.000Z",
+      "expect": "invalid",
+      "reason": "trusted key, wrong role: only release keys may sign detector packs"
+    },
+    {
+      "name": "detectorpacks-valid",
+      "check": "artifact",
+      "envelope": "envelopes/detectorpacks-valid.json",
+      "keyset": "keyset-v2.json",
+      "role": "release",
+      "payload_type": "application/vnd.privometry.detectorpacks+json",
+      "verify_at": "2026-10-23T12:00:00.000Z",
+      "expect": "valid",
+      "reason": "detector pack set signed by the release key"
+    },
+    {
       "name": "entitlements-valid",
       "check": "artifact",
       "envelope": "envelopes/entitlements-valid.json",

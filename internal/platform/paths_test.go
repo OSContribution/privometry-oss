@@ -34,6 +34,8 @@ func TestLocations(t *testing.T) {
 		{"linux user policy", env("linux", nil), Env.UserPolicyPath, "/home/dev/.privometry/policy.yaml"},
 		{"windows db", env("windows", win), Env.DBPath, `C:\Users\dev\AppData\Local\Privometry\privometry.db`},
 		{"windows pipe", env("windows", win), Env.IPCAddress, `\\.\pipe\privometry-dev`},
+		{"windows pipe for a side-by-side home", env("windows", map[string]string{"USERNAME": "dev", "PRIVOMETRY_HOME": `D:\t\home`}),
+			Env.IPCAddress, `\\.\pipe\privometry-dev-18d2cf97`},
 	}
 	for _, tc := range tests {
 		got, err := tc.fn(tc.e)
@@ -69,5 +71,24 @@ func TestExpandPath(t *testing.T) {
 	}
 	if _, err := win.ExpandPath(`%LOCALAPPDATA%\x`); err == nil {
 		t.Error("unset LOCALAPPDATA should fail")
+	}
+}
+
+func TestDisplayPath(t *testing.T) {
+	tests := []struct{ p, home, repo, want string }{
+		{"/home/dev/work/api/src/a.go", "/home/dev", "/home/dev/work/api", "src/a.go"},
+		{"/home/dev/work/api", "/home/dev", "/home/dev/work/api", "."},
+		{"/home/dev/.claude/CLAUDE.md", "/home/dev", "/home/dev/work/api", "~/.claude/CLAUDE.md"},
+		{"/home/dev", "/home/dev", "", "~"},
+		{"/home/devops/x", "/home/dev", "", "/home/devops/x"},
+		{"/etc/claude-code/CLAUDE.md", "/home/dev", "", "/etc/claude-code/CLAUDE.md"},
+		{`C:\Users\dev\work\api\src\a.go`, `C:\Users\dev`, `C:\Users\dev\work\api`, "src/a.go"},
+		{`C:\Users\dev\.gemini\GEMINI.md`, `C:\Users\dev`, "", "~/.gemini/GEMINI.md"},
+		{`C:\ProgramData\x.json`, `C:\Users\dev`, "", `C:\ProgramData\x.json`},
+	}
+	for _, tc := range tests {
+		if got := DisplayPath(tc.p, tc.home, tc.repo); got != tc.want {
+			t.Errorf("DisplayPath(%q) = %q, want %q", tc.p, got, tc.want)
+		}
 	}
 }

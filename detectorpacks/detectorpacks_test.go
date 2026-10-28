@@ -3,6 +3,7 @@
 package detectorpacks_test
 
 import (
+	"os"
 	"testing"
 
 	"gitlab.com/cn-solutions/privometry/privometry-oss/detectorpacks"
@@ -17,7 +18,11 @@ func TestPacks(t *testing.T) {
 	if len(packs) != 3 {
 		t.Fatalf("expected the three Privometry detector packs, found %d", len(packs))
 	}
-	for _, p := range packs {
+	examples, err := content.Load(os.DirFS("community")) // community examples, not shipped
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range append(packs, examples...) {
 		t.Run(p.Manifest.ID, func(t *testing.T) {
 			for _, err := range content.Check(p) {
 				t.Error(err)

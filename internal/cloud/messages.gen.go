@@ -9,7 +9,10 @@ import (
 
 // EnrollRequest is generated from edge-api/v1/messages.schema.json#/$defs/EnrollRequest.
 type EnrollRequest struct {
-	// One-time token from the console, privometry login, or MDM.
+	// One-time token from the console or MDM, or from account-api/v1 when
+	// privometry login registers a person (POST
+	// /registrations/{registration_id}:complete); that token is bound to the
+	// person and valid 10 minutes.
 	EnrollmentToken string `json:"enrollment_token"`
 
 	// PKCS#10 request for an Ed25519 or P-256 key generated on the device; the
@@ -35,7 +38,8 @@ type EnrollResponse struct {
 	DeviceID string `json:"device_id"`
 	OrgID    string `json:"org_id"`
 
-	// Set when the token is bound to a person.
+	// Set when the token is bound to a person, as tokens from account registration
+	// always are.
 	UserID      string `json:"user_id,omitempty"`
 	Region      string `json:"region"`
 	APIBaseURL  string `json:"api_base_url"`
@@ -48,6 +52,12 @@ type EnrollResponse struct {
 	// Organization key for hashed fields: HMAC-SHA256(key, normalized value).
 	// Stored with the device key and never uploaded.
 	HashKey EnrollResponseHashKey `json:"hash_key"`
+
+	// The region's key set (common/v1 keyset.schema.json) signed by a root key:
+	// the policy and license keys the device verifies bundles and entitlements
+	// with. A sensor with root keys built in verifies it against them; one without
+	// pins it at enrollment, after checking it is signed by a root key it lists.
+	KeySet *contract.Envelope `json:"key_set,omitempty"`
 }
 
 // EnrollResponseHashKey is generated from edge-api/v1/messages.schema.json#/$defs/EnrollResponse/properties/hash_key.

@@ -145,11 +145,13 @@ type LicenseBinding struct {
 
 // FeatureRegistry is generated from entitlements/v1/feature-registry.schema.json#.
 //
-// Every feature key and which editions include it. New features add keys; a key
-// is never reused for something else.
+// Every feature key and which editions include it, and each edition's default
+// limits and periods (PRD LIC-01: editions and entitlements are data). New
+// features add keys; a key is never reused for something else.
 type FeatureRegistry struct {
 	Schema   string                            `json:"schema"`
 	Features map[string]FeatureRegistryFeature `json:"features"`
+	Editions FeatureRegistryEditions           `json:"editions"`
 }
 
 // FeatureRegistryFeature is generated from entitlements/v1/feature-registry.schema.json#/properties/features/additionalProperties.
@@ -175,3 +177,37 @@ const (
 	FeatureRegistryFeatureEditionTeam       FeatureRegistryFeatureEdition = "team"
 	FeatureRegistryFeatureEditionEnterprise FeatureRegistryFeatureEdition = "enterprise"
 )
+
+// FeatureRegistryEditions is generated from entitlements/v1/feature-registry.schema.json#/properties/editions.
+type FeatureRegistryEditions struct {
+	Free       Edition `json:"free"`
+	Trial      Edition `json:"trial"`
+	Team       Edition `json:"team"`
+	Enterprise Edition `json:"enterprise"`
+}
+
+// Edition is generated from entitlements/v1/feature-registry.schema.json#/$defs/edition.
+type Edition struct {
+	Description string `json:"description"`
+
+	// The edition's limits. For paid editions seats is the default; a subscription
+	// or contract sets its own.
+	Limits EntitlementsLimits `json:"limits"`
+
+	// Trial only: how long a trial lasts.
+	TrialDays *int64 `json:"trial_days,omitempty"`
+
+	// Paid editions: the fewest seats a subscription may have.
+	MinSeats *int64 `json:"min_seats,omitempty"`
+
+	// After valid_until, how long everything keeps working before the organization
+	// is downgraded to free (LIC-05).
+	GraceDays int64 `json:"grace_days"`
+
+	// How long more active developers than seats are allowed before new devices
+	// are refused (LIC-05). Nothing else degrades.
+	SeatGraceDays int64 `json:"seat_grace_days"`
+
+	// After a downgrade, how long cloud events are kept before they are deleted.
+	PostExpiryRetentionDays int64 `json:"post_expiry_retention_days"`
+}

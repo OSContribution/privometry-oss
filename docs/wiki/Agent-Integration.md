@@ -9,6 +9,9 @@ Agent integrations are data-driven. An adapter definition describes discovery, c
 | Claude Code | `claude_code` | `>=2.1.295 <3.0.0` | `claude_settings` | Supports allow, ask, deny and fail-closed `onFailure` |
 | Codex | `codex_cli` | `>=0.14.0 <1.0.0` | `codex_hooks` | Captures query metadata through `UserPromptSubmit`; requires hook trust; ask falls back to deny; crashes/timeouts fail open in the host |
 | Cursor | `cursor` | `>=1.7.0 <3.0.0` | `cursor_hooks` | Dedicated shell/MCP events support ask; other pre-events may map ask to deny |
+| Gemini CLI | `gemini_cli` | `>=0.26.0 <1.0.0` | `gemini_settings` | `BeforeTool` takes allow or deny (ask falls back to deny); hooks fail open on crash, timeout or bad output; timeouts are written in milliseconds. From documentation, not yet recorded |
+| Antigravity | `antigravity` | `>=1.1.21 <2.0.0` | `antigravity_hooks` | One global hooks file serves the agy CLI, desktop app and IDE; Privometry adds a hook named `privometry`. `PreToolUse` takes allow, ask (sent as `force_ask`) or deny and reportedly fails closed; MCP tools carry no server name. From documentation, not yet recorded |
+| Copilot CLI | `copilot_cli` | `>=1.0.0 <2.0.0` | `copilot_hooks` | Privometry writes its own `~/.copilot/hooks/privometry.json`; `preToolUse` takes allow, ask or deny and fails closed on crash (open on timeout); `toolArgs` arrives as a JSON string. From documentation, not yet recorded |
 
 Adapter source files are under `adapter-defs/`. Generated Go types are under `internal/adapters/registry/`.
 
@@ -20,6 +23,8 @@ Adapter source files are under `adapter-defs/`. Generated Go types are under `in
 4. The daemon validates the adapter and event, reads values through JSON pointers, maps the native tool to a normalized action, and evaluates policy.
 5. The adapter renders allow, ask, deny, or observation output in the host's required shape.
 6. Post-tool and lifecycle events update session state, content findings, and the timeline.
+
+Gemini CLI was retired for consumer tiers on 2026-06-18 in favor of Antigravity CLI (`agy`), whose hooks live in `.agents/hooks.json` with a different payload; Gemini CLI remains available with Gemini Code Assist Standard and Enterprise licenses and paid API keys. Both adapters ship; they share `~/.gemini/GEMINI.md`.
 
 Codex query capture uses the observe-only `UserPromptSubmit` event. The daemon records the prompt ID, Unicode character count, and a device-keyed HMAC fingerprint so identical queries can be correlated without persisting query text. Existing installations must rerun `privometry guard install --agent codex_cli` and trust the updated hook set with Codex `/hooks`.
 
@@ -73,4 +78,4 @@ Test normal actions, destructive commands, secret reads, uploads, MCP calls, una
 
 ## Updating an existing adapter
 
-Prefer data-only updates when the host protocol remains representable by the adapter schema. Change the schema only when the protocol introduces a concept that cannot be expressed safely. Increment adapter-set versions for remotely distributed definitions and document the minimum compatible sensor version.
+Prefer data-only updates when the host protocol remains representable by the adapter schema. Change the schema only when the protocol introduces a concept that cannot be expressed safely. Bump `SetVersion` in `adapter-defs/embed.go` with every change (a test pins each version's content), and set the minimum compatible sensor version when signing. Sensors already in the field get data-only updates through a signed adapter set (`privometry definitions update`); see `docs/definitions.md`.

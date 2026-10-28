@@ -96,7 +96,7 @@ func Run(args []string, stdin io.Reader, stdout, stderr io.Writer, opts Options)
 
 // format is how one agent's decision event expects its reply.
 type format struct {
-	style string // claude (hookSpecificOutput) or cursor (permission)
+	style string // claude (hookSpecificOutput), cursor (permission), gemini or antigravity (decision), copilot (permissionDecision)
 	ask   bool   // whether the event honors ask
 }
 
@@ -107,6 +107,9 @@ var formats = map[string]map[string]format{
 	"codex_cli":   {"PreToolUse": {"claude", false}},
 	"cursor": {"preToolUse": {"cursor", false}, "beforeShellExecution": {"cursor", true},
 		"beforeMCPExecution": {"cursor", true}, "beforeReadFile": {"cursor", false}},
+	"gemini_cli":  {"BeforeTool": {"gemini", false}},
+	"copilot_cli": {"preToolUse": {"copilot", true}},
+	"antigravity": {"PreToolUse": {"antigravity", true}},
 }
 
 var failStrength = map[string]int{"open": 1, "ask": 2, "closed": 3}
@@ -119,8 +122,37 @@ func fallback(agent, event string, payload []byte, reason string, start time.Tim
 	var p map[string]any
 	_ = json.Unmarshal(payload, &p)
 	action, native := actionOf(agent, event, p)
-	secretKinds := redact.SecretKinds(credentialText(action, p))
 	cwd := str(p["cwd"])
+	if agent == "antigravity" {
+		if roots, _ := p["workspacePaths"].([]any); len(roots) > 0 {
+			cwd = str(roots[0])
+		}
+	}
+	verdict, message := decideAlone(agent, native, action, credentialText(action, toolInput(agent, p)), cwd, reason, f.ask, start, opts)
+	if verdict != "" {
+		io.WriteString(stdout, reply(f.style, event, verdict, message))
+	}
+	return 0
+}
+
+// FailModeMCP decides one MCP tool call alone, for privometry-mcp-shim when the
+// daemon cannot answer: the fail mode of the strongest category the call
+// falls in applies, and the decision is spooled for the daemon. MCP servers
+// cannot ask, so ask becomes deny. It returns "" when the mode is open.
+func FailModeMCP(agent, session, server, tool string, args json.RawMessage, cwd, reason string, opts Options) (verdict, message string) {
+	if opts.Now == nil {
+		opts.Now = time.Now
+	}
+	var in any
+	_ = json.Unmarshal(args, &in)
+	action := intent.Action{Kind: "mcp_call", MCPServer: server, MCPTool: tool}
+	return decideAlone(agent, session, action, flatten(in), cwd, reason, false, opts.Now(), opts)
+}
+
+// decideAlone applies the fail modes to an action, spools the fail_mode event
+// and returns the verdict ("" for no opinion) and its message.
+func decideAlone(agent, native string, action intent.Action, credText, cwd, reason string, canAsk bool, start time.Time, opts Options) (string, string) {
+	secretKinds := redact.SecretKinds(credText)
 	if cwd == "" {
 		cwd = opts.Env.Home
 	}
@@ -128,6 +160,9 @@ func fallback(agent, event string, payload []byte, reason string, start time.Tim
 	modes := loadFailModes(opts.Env)
 
 	category, mode := "other", modes["other"]
+	if action.Kind == "mcp_call" && failStrength[modes["unapproved_mcp"]] > failStrength[mode] {
+		category, mode = "unapproved_mcp", modes["unapproved_mcp"]
+	}
 	risk := "none"
 	if len(secretKinds) > 0 && failStrength[modes["secrets"]] > failStrength[mode] {
 		category, mode = "secrets", modes["secrets"]
@@ -143,15 +178,12 @@ func fallback(agent, event string, payload []byte, reason string, start time.Tim
 	}
 
 	verdict := map[string]string{"closed": "deny", "ask": "ask", "open": ""}[mode]
-	if verdict == "ask" && !f.ask {
+	if verdict == "ask" && !canAsk {
 		verdict = "deny"
 	}
-	message := "Privometry could not reach its daemon (" + strings.ReplaceAll(reason, "_", " ") + "), so it applied the " + mode + " fail mode for " + category + " actions. Run: privometry doctor"
-	if verdict != "" {
-		io.WriteString(stdout, reply(f.style, event, verdict, message))
-	}
+	message := "Privometry could not reach its daemon (" + strings.ReplaceAll(reason, "_", " ") + "), so it applied the " + mode + " fail mode for " + strings.ReplaceAll(category, "_", " ") + " actions. Run: privometry doctor"
 	spool(opts, agent, native, action, secretKinds, risk, category, mode, reason, opts.Now().Sub(start))
-	return 0
+	return verdict, message
 }
 
 var riskOrder = map[string]int{"": 0, "none": 0, "low": 1, "medium": 2, "high": 3, "critical": 4}
@@ -176,11 +208,41 @@ func categoryOf(r intent.Request) string {
 	return "other"
 }
 
+// toolInput is the tool's arguments: tool_input, or for Copilot CLI toolArgs,
+// which arrives as a JSON-encoded string.
+func toolInput(agent string, p map[string]any) map[string]any {
+	if agent == "antigravity" {
+		call, _ := p["toolCall"].(map[string]any)
+		in, _ := call["args"].(map[string]any)
+		return in
+	}
+	if agent != "copilot_cli" {
+		in, _ := p["tool_input"].(map[string]any)
+		return in
+	}
+	switch v := p["toolArgs"].(type) {
+	case map[string]any:
+		return v
+	case string:
+		var in map[string]any
+		_ = json.Unmarshal([]byte(v), &in)
+		return in
+	}
+	return nil
+}
+
 // actionOf reads the action from a payload without the adapter definitions.
 func actionOf(agent, event string, p map[string]any) (intent.Action, string) {
 	native := str(p["session_id"])
-	if agent == "cursor" {
+	switch agent {
+	case "cursor":
 		native = str(p["conversation_id"])
+	case "copilot_cli":
+		return copilotAction(p), str(p["sessionId"])
+	case "gemini_cli":
+		return geminiAction(p), native
+	case "antigravity":
+		return antigravityAction(p), str(p["conversationId"])
 	}
 	switch event {
 	case "beforeShellExecution":
@@ -211,23 +273,68 @@ func actionOf(agent, event string, p map[string]any) (intent.Action, string) {
 	return intent.Action{Kind: "other"}, native
 }
 
+func copilotAction(p map[string]any) intent.Action {
+	in := toolInput("copilot_cli", p)
+	switch str(p["toolName"]) {
+	case "bash", "powershell":
+		return intent.Action{Kind: "shell_exec", Command: str(in["command"])}
+	case "view":
+		return intent.Action{Kind: "file_read", Path: str(in["path"])}
+	case "create", "edit":
+		return intent.Action{Kind: "file_write", Path: str(in["path"])}
+	case "web_fetch":
+		return intent.Action{Kind: "network_fetch", URL: str(in["url"])}
+	}
+	return intent.Action{Kind: "other"}
+}
+
+func antigravityAction(p map[string]any) intent.Action {
+	in := toolInput("antigravity", p)
+	call, _ := p["toolCall"].(map[string]any)
+	switch str(call["name"]) {
+	case "run_command":
+		return intent.Action{Kind: "shell_exec", Command: str(in["CommandLine"])}
+	case "view_file":
+		return intent.Action{Kind: "file_read", Path: str(in["AbsolutePath"])}
+	case "write_to_file", "replace_file_content", "multi_replace_file_content":
+		return intent.Action{Kind: "file_write", Path: str(in["TargetFile"])}
+	case "read_url_content":
+		return intent.Action{Kind: "network_fetch", URL: str(in["Url"])}
+	}
+	return intent.Action{Kind: "other"}
+}
+
+func geminiAction(p map[string]any) intent.Action {
+	in, _ := p["tool_input"].(map[string]any)
+	switch tool := str(p["tool_name"]); {
+	case tool == "run_shell_command":
+		return intent.Action{Kind: "shell_exec", Command: str(in["command"])}
+	case tool == "read_file":
+		return intent.Action{Kind: "file_read", Path: str(in["file_path"])}
+	case tool == "write_file" || tool == "replace":
+		return intent.Action{Kind: "file_write", Path: str(in["file_path"])}
+	case strings.HasPrefix(tool, "mcp_"):
+		return intent.Action{Kind: "mcp_call", MCPTool: tool}
+	}
+	return intent.Action{Kind: "other"}
+}
+
 // credentialText returns only the fields that can leave the agent or be
 // written by it. The fallback path deliberately reuses redact's small,
 // compiled credential recognizers instead of loading detector packs, YAML or
 // the policy engine into the latency-sensitive hook client.
-func credentialText(a intent.Action, p map[string]any) string {
+func credentialText(a intent.Action, in map[string]any) string {
 	switch a.Kind {
 	case "shell_exec":
 		return a.Command
 	case "network_fetch":
 		return a.URL
 	}
-	in, _ := p["tool_input"].(map[string]any)
 	switch a.Kind {
 	case "mcp_call":
 		return flatten(in)
 	case "file_write":
-		for _, key := range []string{"content", "new_string", "new_source", "command"} {
+		for _, key := range []string{"content", "new_string", "new_source", "file_text", "new_str", "CodeContent", "ReplacementContent", "ReplacementChunks", "command"} {
 			if value := flatten(in[key]); value != "" {
 				return key + ": " + value
 			}
@@ -273,9 +380,19 @@ func str(v any) string {
 // reply renders a decision in the agent's native shape.
 func reply(style, event, verdict, message string) string {
 	var v any
-	if style == "cursor" {
+	switch style {
+	case "cursor":
 		v = map[string]string{"permission": verdict, "user_message": message, "agent_message": message}
-	} else {
+	case "gemini":
+		v = map[string]string{"decision": verdict, "reason": message, "systemMessage": message}
+	case "copilot":
+		v = map[string]string{"permissionDecision": verdict, "permissionDecisionReason": message}
+	case "antigravity":
+		if verdict == "ask" {
+			verdict = "force_ask" // ask would honor an earlier "Always Allow"
+		}
+		v = map[string]string{"decision": verdict, "reason": message}
+	default:
 		v = map[string]any{"hookSpecificOutput": map[string]string{
 			"hookEventName": event, "permissionDecision": verdict, "permissionDecisionReason": message}}
 	}

@@ -4,7 +4,8 @@
 // release key. privometry update installs one only when all of these hold:
 //
 //   - the signature verifies against the release keys built into this
-//     binary (none ship yet, so every update is refused; see keys/README.md);
+//     binary (none ship yet, so every update is refused; see
+//     internal/trust/keys/README.md);
 //   - the manifest validates against its schema and has not expired;
 //   - its version is newer than the running one (no downgrades, no
 //     reinstalls, and development builds never update themselves);
@@ -25,12 +26,10 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
-	"embed"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"net/http"
 	"net/url"
 	"os"
@@ -42,6 +41,7 @@ import (
 	"time"
 
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/signing"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/trust"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/specs"
 )
 
@@ -60,7 +60,7 @@ const (
 
 // Errors callers can match with errors.Is.
 var (
-	ErrNoReleaseKeys = errors.New("update: this build has no release signing keys, so it cannot verify updates")
+	ErrNoReleaseKeys = trust.ErrNoReleaseKeys
 	ErrDevBuild      = errors.New("update: development builds do not update themselves")
 	ErrUpToDate      = errors.New("update: already up to date")
 	ErrDowngrade     = errors.New("update: the published release is older than this one; downgrades are refused")
@@ -69,20 +69,8 @@ var (
 	ErrManaged       = errors.New("update: Privometry was installed by a package manager")
 )
 
-//go:embed keys
-var keysFS embed.FS
-
 // TrustedKeys returns the release key set built into this binary.
-func TrustedKeys() (*signing.KeySet, error) {
-	raw, err := keysFS.ReadFile("keys/release-keys.json")
-	if errors.Is(err, fs.ErrNotExist) {
-		return nil, ErrNoReleaseKeys
-	}
-	if err != nil {
-		return nil, err
-	}
-	return signing.ParseKeySet(raw)
-}
+func TrustedKeys() (*signing.KeySet, error) { return trust.ReleaseKeys() }
 
 // Options configure a check or an install.
 type Options struct {
@@ -224,6 +212,7 @@ func InstallDir() (string, error) {
 type Staged struct {
 	Dir   string
 	Files map[string]string // binary name -> staged path
+	Ext   string            // ".exe" on Windows
 }
 
 // Stage downloads the artifact, checks its size and digest, extracts the
@@ -249,6 +238,10 @@ func Stage(ctx context.Context, opts Options, art *Artifact, dir, want string) (
 		wanted[string(b)] = true
 	}
 	s := &Staged{Dir: dir, Files: map[string]string{}}
+	if opts.GOOS == "windows" {
+		s.Ext = ".exe"
+	}
+	removeOld(dir)
 	write := func(name string, r io.Reader) error {
 		if !wanted[name] || s.Files[name] != "" {
 			return nil // not a declared binary, or a duplicate entry: ignore
@@ -257,6 +250,7 @@ func Stage(ctx context.Context, opts Options, art *Artifact, dir, want string) (
 		if err != nil {
 			return err
 		}
+		tmp += s.Ext
 		f, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o755)
 		if err != nil {
 			return err
@@ -412,7 +406,7 @@ func (s *Staged) Install() error {
 		}
 	}
 	for _, n := range names {
-		target := filepath.Join(s.Dir, n)
+		target := filepath.Join(s.Dir, n+s.Ext)
 		sw := swapped{target: target}
 		if _, err := os.Lstat(target); err == nil {
 			sw.old = target + ".privometry-old-" + strconv.FormatInt(time.Now().UnixNano(), 36)
@@ -434,10 +428,20 @@ func (s *Staged) Install() error {
 	}
 	for _, d := range done {
 		if d.old != "" {
-			os.Remove(d.old)
+			os.Remove(d.old) // Windows keeps a running binary; the next update removes it
 		}
 	}
 	return nil
+}
+
+// removeOld deletes binaries an earlier update replaced but could not
+// remove because they were running (Windows renames a running binary but
+// does not delete it).
+func removeOld(dir string) {
+	old, _ := filepath.Glob(filepath.Join(dir, "*.privometry-old-*"))
+	for _, p := range old {
+		os.Remove(p)
+	}
 }
 
 // version is a parsed semantic version.

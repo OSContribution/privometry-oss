@@ -99,3 +99,18 @@ func (a *Adapter) MCPTool(name string) (server, tool string, ok bool) {
 	}
 	return rest[:i], rest[i+len(sep):], true
 }
+
+// MCPToolOf returns the tool part of an MCP tool name when the server is
+// known from the payload, which settles names the template alone cannot
+// split, such as mcp_my_server_list_files with server my_server.
+func (a *Adapter) MCPToolOf(name, server string) (string, bool) {
+	if a.MCPTools == nil || !strings.Contains(a.MCPTools.NameTemplate, "{server}") {
+		return "", false
+	}
+	tpl := strings.Replace(a.MCPTools.NameTemplate, "{server}", server, 1)
+	ti := strings.Index(tpl, "{tool}")
+	if ti < 0 || !strings.HasPrefix(name, tpl[:ti]) || len(name) == ti {
+		return "", false
+	}
+	return name[ti:], true
+}

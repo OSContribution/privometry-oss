@@ -347,6 +347,9 @@ const (
 
 // Integrity is generated from event-schema/v1/event.schema.json#/$defs/integrity.
 type Integrity struct {
+	// hooks_bypassed: a running agent was started with a flag from its adapter's
+	// detect.bypass_flags, which skips its permission prompts or its hooks; detail
+	// names the flag, never the command line.
 	Check        IntegrityCheck        `json:"check"`
 	AgentProduct contract.AgentProduct `json:"agent_product,omitempty"`
 	Tier         contract.ConfigTier   `json:"tier,omitempty"`
@@ -361,6 +364,10 @@ type Integrity struct {
 }
 
 // IntegrityCheck is generated from event-schema/v1/event.schema.json#/$defs/integrity/properties/check.
+//
+// hooks_bypassed: a running agent was started with a flag from its adapter's
+// detect.bypass_flags, which skips its permission prompts or its hooks; detail
+// names the flag, never the command line.
 type IntegrityCheck string
 
 // Values of IntegrityCheck.
@@ -370,6 +377,7 @@ const (
 	IntegrityCheckConfigHashMismatch   IntegrityCheck = "config_hash_mismatch"
 	IntegrityCheckSensorBinaryModified IntegrityCheck = "sensor_binary_modified"
 	IntegrityCheckSequenceGap          IntegrityCheck = "sequence_gap"
+	IntegrityCheckHooksBypassed        IntegrityCheck = "hooks_bypassed"
 	IntegrityCheckOther                IntegrityCheck = "other"
 )
 
@@ -436,7 +444,16 @@ type InventoryItem struct {
 	Tier         contract.ConfigTier       `json:"tier,omitempty"`
 	PathClass    contract.PathClass        `json:"path_class,omitempty"`
 	MCPTransport InventoryItemMCPTransport `json:"mcp_transport,omitempty"`
-	Posture      *InventoryItemPosture     `json:"posture,omitempty"`
+
+	// For MCP servers: the package the server runs, such as
+	// @modelcontextprotocol/server-github, without a version. Organization
+	// catalogs match on it.
+	Package string `json:"package,omitempty"`
+
+	// For HTTP MCP servers: the host of the server's URL, without credentials,
+	// path or query.
+	Host    string                `json:"host,omitempty"`
+	Posture *InventoryItemPosture `json:"posture,omitempty"`
 }
 
 // InventoryItemKind is generated from event-schema/v1/event.schema.json#/$defs/inventory/properties/item/properties/kind.
@@ -503,8 +520,11 @@ type ContentFinding struct {
 	SecretType string                  `json:"secret_type,omitempty"`
 	Location   *ContentFindingLocation `json:"location,omitempty"`
 
-	// Credentials only: salted hash of the secret, to spot the same secret on
-	// several devices.
+	// Credentials only: HMAC-SHA256 of the secret. On an enrolled device the key
+	// is the organization's hash key, so the same secret has the same fingerprint
+	// on every device of the organization and the platform can track it across
+	// devices (PRD SCAN-15); otherwise it is a key that never leaves the device,
+	// and such fingerprints are not uploaded.
 	Fingerprint string                    `json:"fingerprint,omitempty"`
 	ActionTaken ContentFindingActionTaken `json:"action_taken"`
 }

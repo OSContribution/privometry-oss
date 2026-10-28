@@ -109,6 +109,7 @@
         "codex_cli",
         "gemini_cli",
         "copilot_cli",
+        "antigravity",
         "other"
       ]
     },
@@ -216,7 +217,7 @@
     },
     "keyid": {
       "type": "string",
-      "pattern": "^(release|policy|feed|license|root):[a-z0-9-]+:[0-9a-f]{16}$",
+      "pattern": "^(release|policy|feed|license|root|publisher):[a-z0-9-]+:[0-9a-f]{16}$",
       "description": "<role>:<name>:<first 16 hex of the SHA-256 of the raw Ed25519 public key>."
     },
     "https_url": {

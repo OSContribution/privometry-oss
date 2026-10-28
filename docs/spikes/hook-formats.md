@@ -8,7 +8,7 @@ Date: 2026-10-23. Goal: confirm how each P1 agent lets Privometry intercept a to
 |---|---|---|---|
 | Claude Code 2.1.304 | `PreToolUse`, full allow / ask / deny | Recorded from a real headless session | `test/fixtures/claude_code/2.1.304/hooks/` (14 payloads) |
 | Cursor | `preToolUse` plus `beforeShellExecution`, `beforeMCPExecution`, `beforeReadFile` | Official docs only | Pending: needs a run in the Cursor IDE |
-| Codex CLI | `PreToolUse`, allow / deny only | Official docs only | Pending: local install is broken (missing native binary) |
+| Codex CLI 0.164.0 | `PreToolUse`, allow / deny only | Recorded from real `codex exec` sessions | `test/fixtures/codex_cli/0.164.0/hooks/` (14 payloads) |
 
 Sources: [Claude Code hooks](https://code.claude.com/docs/en/hooks.md), [Claude Code settings](https://code.claude.com/docs/en/settings.md), [Cursor hooks](https://cursor.com/docs/hooks.md), [Cursor third-party hooks](https://cursor.com/docs/reference/third-party-hooks.md), [Codex hooks](https://developers.openai.com/codex/hooks.md), [Codex managed configuration](https://developers.openai.com/codex/enterprise/managed-configuration.md).
 
@@ -39,6 +39,19 @@ Sources: [Claude Code hooks](https://code.claude.com/docs/en/hooks.md), [Claude 
 - `ConfigChange` fired with `source: "skills"` when a synced skill changed mid-session. Claude Code reports config drift itself.
 - No MCP call was recorded. That needs a run with a local MCP server.
 
+## What the recordings showed (Codex CLI 0.164.0)
+
+- Hook events in this version: `SessionStart`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `PermissionRequest`, `Stop`, `SessionEnd`, `SubagentStart`, `SubagentStop`, `PreCompact`, `PostCompact`. Hooks are on by default (feature `hooks`, stable).
+- Every payload has `session_id`, `transcript_path` (null under `codex exec --ephemeral`), `cwd`, `hook_event_name`, `model` and `permission_mode`. `codex exec` reports `bypassPermissions` whatever the sandbox and approval policy.
+- `UserPromptSubmit` and tool events carry `turn_id`; there is no `prompt_id`.
+- `PreToolUse` and `PostToolUse` carry `tool_name`, `tool_input` and `tool_use_id` (`exec-<uuid>`). Shell is `Bash` with `tool_input.command`. File edits are `apply_patch` with the whole patch in `tool_input.command` (`*** Update File:`, `*** Add File:`, `*** Delete File:`). MCP tools are `mcp__<server>__<tool>` with the tool's arguments as `tool_input`.
+- `PostToolUse` fires only after a tool succeeds. `tool_response` is text for `Bash` and `apply_patch` and the MCP result object for MCP tools. A command the sandbox refused had no `PostToolUse`.
+- `SessionEnd` carries `reason` and no `model`. Codex caps its timeout at 3 seconds and warns on every run when a hook asks for more.
+- `PermissionRequest` did not fire under `codex exec`, which never offers escalation; it needs an interactive session with on-request approvals.
+- Trust: `codex` lists new or changed hooks at startup ("Trust all and continue"), and `/hooks` reviews them. Trust is saved per hook in `config.toml` as `[hooks.state."<hooks.json path>:<event>:<group>:<hook>"]` with a `trusted_hash`; changing a hook's command or timeout needs trust again. `codex exec --dangerously-bypass-hook-trust` skips this for one run.
+- End to end (0.164.0, `privometry guard install`, trusted once): Codex runs `privometry-hook` on all five registered events, honors the `hookSpecificOutput` deny (the model reported the command "blocked by a PreToolUse hook" with Privometry's reason), and shows no timeout warning with `SessionEnd` registered at 3 seconds. The timeline shows the policy verdict (`ASKED` for `cat .env`) while Codex received a deny.
+- A model can misread a prompt into a dangerous command: asked to run "rm -rf build ." as a sentence, it ran `rm -rf build .`. The read-only sandbox stopped it; the payload is kept as a fixture.
+
 ## Consequences for the design
 
 1. **The adapter contracts use agent-specific response shapes.** Claude Code and Codex expect `{"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": ..., "permissionDecisionReason": ...}}`. Cursor expects `{"permission": ..., "user_message": ..., "agent_message": ...}`. `specs/adapter/v1` and its examples now enforce these shapes.
@@ -52,7 +65,8 @@ Sources: [Claude Code hooks](https://code.claude.com/docs/en/hooks.md), [Claude 
 ## Still open
 
 - [ ] Record Cursor payloads: install the recorder in a test project's `.cursor/hooks.json` and run one agent session in the IDE.
-- [ ] Record Codex payloads after reinstalling it (`npm i -g @openai/codex`), including the hook-trust flow.
+- [x] Record Codex payloads (0.164.0), including the hook-trust flow.
+- [ ] Record a Codex `PermissionRequest` from an interactive session with on-request approvals, and `Stop` and subagent events.
 - [ ] Record a Claude Code MCP call (`mcp_server` field) and a `WebFetch`.
 - [ ] Measure the hook round trip each agent adds, to set the latency budget against real overhead.
 

@@ -5,7 +5,9 @@ package scanner
 
 import (
 	"bufio"
+	"bytes"
 	"os"
+	"path"
 	"runtime"
 	"slices"
 	"sort"
@@ -41,7 +43,30 @@ type Result struct {
 	// ContentFindings are content detector hits in memory and instruction
 	// files, skills and agent configs (PRD SCAN-05 to SCAN-07).
 	ContentFindings []ContentFinding `json:"content_findings"`
-	Summary         map[string]int   `json:"summary"`
+	// Allowlisted counts content findings dropped by policy allowlists.
+	Allowlisted int            `json:"allowlisted"`
+	Summary     map[string]int `json:"summary"`
+}
+
+// Options control a scan.
+type Options struct {
+	discover.Options
+	// Detectors are the detector packs to run; nil means the packs built
+	// into this binary.
+	Detectors []*content.Pack
+	// Allowlist drops content findings people accepted in a policy file.
+	Allowlist *content.Allowlist
+	// Changed lists the repo files a merge or pull request changes. Agent
+	// config, memory and policy files among them become agent_file_changed
+	// findings, and every changed text file is scanned with the detectors
+	// that apply to repositories (PRD EDGE-30, SCAN-08).
+	Changed []Change
+}
+
+// Change is one changed file, relative to the repo root with / separators.
+type Change struct {
+	Path    string
+	Deleted bool
 }
 
 // ContentFinding is one detector hit in a file at rest. The excerpt masks
@@ -67,8 +92,12 @@ var (
 	engineErr  error
 )
 
-// detectors loads the shipped detector packs once.
-func detectors() (*content.Engine, error) {
+// detectors returns an engine for packs, or for the shipped packs, loaded
+// once, when packs is nil.
+func detectors(packs []*content.Pack) (*content.Engine, error) {
+	if packs != nil {
+		return content.New(packs, content.Options{}), nil
+	}
 	engineOnce.Do(func() {
 		packs, err := content.Load(detectorpacks.FS)
 		if err != nil {
@@ -84,17 +113,23 @@ func detectors() (*content.Engine, error) {
 const maxScanFile = 1 << 20
 
 // scanContent runs the detectors over each agent's memory files, skills and
-// config files, once per file. Credentials in config files are left to the
-// secret_in_config posture check, which names the setting.
-func scanContent(agents []discover.Agent) ([]ContentFinding, error) {
-	eng, err := detectors()
+// config files, once per file, then over the changed repo files not already
+// scanned. Credentials in config files are left to the secret_in_config
+// posture check, which names the setting. It returns the findings and how
+// many the allowlist dropped.
+func scanContent(agents []discover.Agent, opts Options) ([]ContentFinding, int, error) {
+	eng, err := detectors(opts.Detectors)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	out := []ContentFinding{}
 	seen := map[string]bool{}
+	allowlisted := 0
+	now := time.Now()
 	add := func(a discover.Agent, tier contract.ConfigTier, display, text string, src content.Source, lines bool) {
-		for _, f := range eng.Scan(src, text) {
+		fs, dropped := opts.Allowlist.Filter(eng.Scan(src, text), text, display, now)
+		allowlisted += dropped
+		for _, f := range fs {
 			if src == content.SourceAgentConfig && f.Category == content.CategoryCredential {
 				continue
 			}
@@ -153,18 +188,45 @@ func scanContent(agents []discover.Agent) ([]ContentFinding, error) {
 			scan(a, c.Tier, c.Path, c.RealPath, src)
 		}
 	}
+	for _, c := range opts.Changed {
+		if c.Deleted || opts.RepoRoot == "" {
+			continue
+		}
+		real := opts.Root + path.Join(opts.RepoRoot, c.Path)
+		if seen[real] {
+			continue
+		}
+		seen[real] = true
+		info, err := os.Lstat(real)
+		if err != nil || !info.Mode().IsRegular() {
+			continue // gone, a folder, or a symlink that may point outside the repo
+		}
+		raw, err := os.ReadFile(real)
+		if err != nil || isBinary(raw) {
+			continue
+		}
+		if len(raw) > maxScanFile {
+			raw = raw[:maxScanFile]
+		}
+		add(discover.Agent{}, contract.ConfigTierProject, c.Path, string(raw), content.SourceRepo, true)
+	}
 	sort.SliceStable(out, func(i, j int) bool {
 		if r1, r2 := posture.Rank(out[i].Severity), posture.Rank(out[j].Severity); r1 != r2 {
 			return r1 > r2
 		}
 		return out[i].Path < out[j].Path
 	})
-	return out, nil
+	return out, allowlisted, nil
 }
 
-// Scan discovers agents and checks their posture.
-func Scan(reg *registry.Registry, opts discover.Options) (*Result, error) {
-	agents, err := discover.Run(reg, opts)
+// isBinary reports whether a file looks binary: a NUL byte near its start.
+func isBinary(b []byte) bool {
+	return bytes.IndexByte(b[:min(len(b), 8000)], 0) >= 0
+}
+
+// Scan discovers agents, checks their posture and scans their files.
+func Scan(reg *registry.Registry, opts Options) (*Result, error) {
+	agents, err := discover.Run(reg, opts.Options)
 	if err != nil {
 		return nil, err
 	}
@@ -173,7 +235,8 @@ func Scan(reg *registry.Registry, opts discover.Options) (*Result, error) {
 		findings = []posture.Finding{}
 	}
 	locate(agents, findings)
-	cfs, err := scanContent(agents)
+	findings = append(findings, changedFiles(reg, opts)...)
+	cfs, allowlisted, err := scanContent(agents, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -188,6 +251,7 @@ func Scan(reg *registry.Registry, opts discover.Options) (*Result, error) {
 		Agents:          agents,
 		Findings:        findings,
 		ContentFindings: cfs,
+		Allowlisted:     allowlisted,
 		Summary:         map[string]int{},
 	}
 	if res.Agents == nil {

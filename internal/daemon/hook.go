@@ -11,6 +11,7 @@ import (
 	"unicode/utf8"
 
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/adapters/registry"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/cloud/bundles"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/contract"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/events"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/ipc"
@@ -64,10 +65,21 @@ func (d *Daemon) hook(h ipc.HookRequest) (ipc.Response, error) {
 	}
 	c := call{adapter: a, event: ev, product: a.Agent, payload: payload}
 	c.field = func(name string) any {
-		if ptr, ok := ev.Request[name]; ok {
-			return parsers.Lookup(payload, ptr)
+		ptr, ok := ev.Request[name]
+		if !ok {
+			return nil
 		}
-		return nil
+		v := parsers.Lookup(payload, ptr)
+		if s, isString := v.(string); isString && name == "tool_input" {
+			// Copilot CLI sends tool arguments as a JSON-encoded string.
+			var in map[string]any
+			d := json.NewDecoder(strings.NewReader(s))
+			d.UseNumber()
+			if d.Decode(&in) == nil {
+				return in
+			}
+		}
+		return v
 	}
 	c.product = d.caller(a, payload)
 	if h.Probe != "" && d.takeProbe(h.Probe) {
@@ -78,6 +90,7 @@ func (d *Daemon) hook(h ipc.HookRequest) (ipc.Response, error) {
 		}
 		return none(ev), nil
 	}
+	d.noteHookCall(c.product)
 	if c.product != a.Agent && d.hookedNatively(c.product) {
 		// Cursor runs Claude Code's hooks too. When Cursor has its own Privometry
 		// hook, that one decides; this imported call gives no opinion.
@@ -224,7 +237,7 @@ func (c call) actions() (toolName string, out []intent.Action) {
 	case "file_read", "file_write", "file_delete":
 		if target.Patch != "" {
 			for _, p := range patchFiles(get(target.Patch)) {
-				out = append(out, intent.Action{Kind: "file_write", Path: p})
+				out = append(out, intent.Action{Kind: p.kind, Path: p.path})
 			}
 			if len(out) > 0 {
 				return toolName, out
@@ -237,19 +250,32 @@ func (c call) actions() (toolName string, out []intent.Action) {
 		server, tool, _ := c.adapter.MCPTool(toolName)
 		if s := c.str("mcp_server"); s != "" {
 			server = s
+			if t, ok := c.adapter.MCPToolOf(toolName, s); ok {
+				tool = t // the server name may contain the separator (Gemini's mcp_my_server_tool)
+			}
 		}
 		return toolName, []intent.Action{{Kind: kind, MCPServer: server, MCPTool: tool}}
 	}
 	return toolName, []intent.Action{{Kind: kind}}
 }
 
+// patchFile is one file an apply_patch body touches.
+type patchFile struct {
+	kind string // file_write or file_delete
+	path string
+}
+
 // patchFiles lists the files an apply_patch body touches.
-func patchFiles(patch string) []string {
-	var out []string
+func patchFiles(patch string) []patchFile {
+	var out []patchFile
 	for _, line := range strings.Split(patch, "\n") {
 		for _, prefix := range []string{"*** Update File: ", "*** Add File: ", "*** Delete File: ", "*** Move to: "} {
 			if p, ok := strings.CutPrefix(line, prefix); ok {
-				out = append(out, strings.TrimSpace(p))
+				kind := "file_write"
+				if prefix == "*** Delete File: " {
+					kind = "file_delete"
+				}
+				out = append(out, patchFile{kind, strings.TrimSpace(p)})
 			}
 		}
 	}
@@ -283,7 +309,8 @@ func (d *Daemon) decide(c call) (ipc.Response, error) {
 	remote := remoteOf(sess)
 	toolName, actions := c.actions()
 	pieces := c.pieces(actions)
-	hits, complete := d.scanPieces(pieces, time.Now().Add(contentBudget))
+	allow := d.allowlistFor(sess.Git)
+	hits, complete := d.scanPieces(pieces, time.Now().Add(contentBudget), allow, sess.Git)
 	sum := summarize(hits)
 	found := policy.Content{SecretTypes: sum.SecretTypes, Injection: sum.Injection, HiddenContent: sum.HiddenContent}
 
@@ -292,7 +319,8 @@ func (d *Daemon) decide(c call) (ipc.Response, error) {
 	for i, a := range actions {
 		dec, err := p.Decide(policy.Input{
 			Agent: engine.Agent{Product: string(c.product), Version: c.str("agent_version"), Pattern: "interactive"},
-			Repo:  remote, Action: a, Context: ctx, UntrustedInputSeen: sess.Untrusted, InjectionSeen: sess.Injected, Content: found})
+			Repo:  remote, Action: a, Context: ctx, UntrustedInputSeen: sess.Untrusted, InjectionSeen: sess.Injected, Content: found,
+			CatalogStatus: d.mcpCatalogStatus(c.product, a)})
 		if err != nil {
 			return ipc.Response{}, err
 		}
@@ -301,6 +329,7 @@ func (d *Daemon) decide(c call) (ipc.Response, error) {
 		}
 	}
 
+	best = d.feedAdjust(c.product, bestAction, best)
 	native := best.Verdict
 	if !hasVerdict(c.event, native) {
 		native = string(c.event.Fallback[native])
@@ -309,6 +338,10 @@ func (d *Daemon) decide(c call) (ipc.Response, error) {
 		}
 	}
 	message := messageFor(best)
+	appr := d.routeApproval(c, sess, bestAction, best, native)
+	if appr != nil {
+		native, message = appr.native, appr.message
+	}
 	tpl, ok := c.event.Responses[native]
 	if !ok {
 		return ipc.Response{}, fmt.Errorf("adapter %s event %s has no %s reply", c.adapter.Agent, c.event.Name, native)
@@ -327,6 +360,9 @@ func (d *Daemon) decide(c call) (ipc.Response, error) {
 	}
 	ev := d.actionEvent(c, sess, toolName, useID, bestAction, best, native, remote, time.Since(start))
 	ev.Action.SecretTypes = sum.SecretTypes
+	if appr != nil {
+		appr.applyApproval(ev)
+	}
 	target := targetOf(bestAction)
 	if err := d.appendEvent(ev, target); err != nil {
 		return ipc.Response{}, err
@@ -337,7 +373,7 @@ func (d *Daemon) decide(c call) (ipc.Response, error) {
 		// whatever the first pass missed.
 		action, mcp := ev.Action, ev.MCP
 		d.background(func() {
-			all, _ := d.scanPieces(pieces, time.Time{})
+			all, _ := d.scanPieces(pieces, time.Time{}, allow, sess.Git)
 			var rest []hit
 			for _, h := range all {
 				if !slices.ContainsFunc(hits, func(x hit) bool { return x.piece == h.piece && x.DetectorID == h.DetectorID && x.Start == h.Start }) {
@@ -346,6 +382,9 @@ func (d *Daemon) decide(c call) (ipc.Response, error) {
 			}
 			d.recordFindings(c, sess, action, mcp, remote, rest, pieces, events.ContentFindingActionTakenNone)
 		})
+	}
+	if appr != nil && appr.request != nil {
+		d.startApproval(appr.request, ev)
 	}
 	resp.EventID = ev.EventID
 	d.remember(useID, resp)
@@ -398,7 +437,7 @@ func render(tpl registry.Response, message string) (ipc.Response, error) {
 	if tpl.Stdout == nil {
 		return resp, nil
 	}
-	out, err := json.Marshal(fill(tpl.Stdout, message))
+	out, err := json.Marshal(fill(*tpl.Stdout, message))
 	if err != nil {
 		return resp, err
 	}
@@ -441,10 +480,53 @@ func (d *Daemon) postTool(c call) (ipc.Response, error) {
 			d.memoryWritten(c, p)
 		}
 	}
-	if source := untrustedSource(c); source != "" {
+	if source := untrustedSource(c); source != "" && !(source == "mcp_response" && d.trustedMCP(c, sess)) {
 		return none(c.event), d.store.MarkUntrusted(sess.ID, source)
 	}
 	return none(c.event), nil
+}
+
+// trustedMCP reports whether a user or organization policy rule explicitly
+// allows this MCP call, such as a rule for the desktop app's own tools: its
+// result then does not make the session untrusted. The output is still
+// scanned, and injected instructions in it still mark the session. A repo
+// policy cannot vouch for servers, since the repo may be what is untrusted.
+func (d *Daemon) trustedMCP(c call, sess *sessionInfo) bool {
+	p, err := d.policyFor(sess.Git)
+	if err != nil {
+		return false
+	}
+	cwd := sess.Cwd
+	if cwd == "" {
+		cwd = d.cfg.Env.Home
+	}
+	ctx := intent.Context{Cwd: cwd, Home: d.cfg.Env.Home, RepoRoot: sess.Root, TempDirs: []string{os.TempDir()}}
+	_, actions := c.actions()
+	if len(actions) == 0 {
+		return false
+	}
+	rules := p.Merged().Rules
+	for _, a := range actions {
+		if a.Kind != "mcp_call" {
+			return false
+		}
+		dec, err := p.Decide(policy.Input{Agent: engine.Agent{Product: string(c.product), Version: c.str("agent_version"), Pattern: "interactive"},
+			Repo: remoteOf(sess), Action: a, Context: ctx})
+		if err != nil || dec.Verdict != "allow" {
+			return false
+		}
+		vouched := false
+		for _, id := range dec.RuleIDs {
+			r := rules[id]
+			if r.Verdict == contract.VerdictAllow && (r.Layer == bundles.BundleRuleLayerUser || r.Layer == bundles.BundleRuleLayerOrg) {
+				vouched = true
+			}
+		}
+		if !vouched {
+			return false
+		}
+	}
+	return true
 }
 
 // untrustedSource names the kind of untrusted content a finished tool call
@@ -518,6 +600,15 @@ func (d *Daemon) actionEvent(c call, sess *sessionInfo, toolName, useID string, 
 		ev.Repo = &events.Repo{Remote: remote}
 	}
 	ev.MCP = mcpOf(a)
+	if ev.MCP != nil {
+		if st := d.mcpCatalogStatus(c.product, a); st != "" {
+			ev.MCP.CatalogStatus = contract.CatalogStatus(st)
+		}
+		if e := d.feedEntry(c.product, a); e != nil {
+			score := e.Score
+			ev.MCP.RiskScore = &score
+		}
+	}
 	return ev
 }
 
@@ -553,12 +644,34 @@ func cwdScope(s *sessionInfo, home string) events.ContextCwdScope {
 	switch {
 	case s.Root != "":
 		return events.ContextCwdScopeRepo
-	case s.Cwd == home || strings.HasPrefix(s.Cwd, home+"/"):
+	case home != "" && isUnder(s.Cwd, home):
 		return events.ContextCwdScopeHome
-	case s.Cwd == "/" || strings.HasPrefix(s.Cwd, "/etc") || strings.HasPrefix(s.Cwd, "/usr"):
+	case s.Cwd == "/" || strings.HasPrefix(s.Cwd, "/etc") || strings.HasPrefix(s.Cwd, "/usr"), windowsSystemDir(s.Cwd):
 		return events.ContextCwdScopeSystem
 	}
 	return events.ContextCwdScopeOther
+}
+
+func isUnder(p, dir string) bool {
+	_, ok := platform.Under(p, dir)
+	return ok
+}
+
+// windowsSystemDir reports a drive root or a folder Windows and installers own.
+func windowsSystemDir(p string) bool {
+	if len(p) < 3 || p[1] != ':' || p[2] != '\\' {
+		return false
+	}
+	rest := strings.ToLower(p[3:])
+	if rest == "" {
+		return true
+	}
+	for _, dir := range []string{"windows", "program files", "program files (x86)", "programdata"} {
+		if rest == dir || strings.HasPrefix(rest, dir+`\`) {
+			return true
+		}
+	}
+	return false
 }
 
 func localUser() string {

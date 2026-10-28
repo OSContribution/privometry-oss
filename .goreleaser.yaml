@@ -20,12 +20,25 @@ builds:
       - -X gitlab.com/cn-solutions/privometry/privometry-oss/internal/buildinfo.Version={{.Version}}
       - -X gitlab.com/cn-solutions/privometry/privometry-oss/internal/buildinfo.Commit={{.ShortCommit}}
       - -X gitlab.com/cn-solutions/privometry/privometry-oss/internal/buildinfo.Date={{.Date}}
-    goos: [darwin, linux]   # windows arrives in P2
+    goos: [darwin, linux, windows]
     goarch: [amd64, arm64]
   - <<: *bin
     id: privometryd
     main: ./cmd/privometryd
     binary: privometryd
+    goos: [darwin, linux]
+  # On Windows privometryd is a GUI-subsystem program, so the logon task that
+  # starts it opens no console window; it logs with -log instead.
+  - <<: *bin
+    id: privometryd-windows
+    main: ./cmd/privometryd
+    binary: privometryd
+    goos: [windows]
+    ldflags:
+      - -s -w -H=windowsgui
+      - -X gitlab.com/cn-solutions/privometry/privometry-oss/internal/buildinfo.Version={{.Version}}
+      - -X gitlab.com/cn-solutions/privometry/privometry-oss/internal/buildinfo.Commit={{.ShortCommit}}
+      - -X gitlab.com/cn-solutions/privometry/privometry-oss/internal/buildinfo.Date={{.Date}}
   - <<: *bin
     id: privometry-hook
     main: ./cmd/privometry-hook
@@ -37,8 +50,25 @@ builds:
 
 archives:
   - formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     files: [LICENSE, NOTICE, README.md, privometry.cdx.json, dependency-licenses.json]
+
+# Scoop manifest for Windows. Generated into dist/ only until the bucket and
+# release signing are set up, like the rest of publishing.
+scoops:
+  - name: privometry
+    skip_upload: true
+    repository:
+      owner: cn-solutions/privometry
+      name: scoop-bucket
+    homepage: https://gitlab.com/cn-solutions/privometry/privometry-oss
+    description: Local guard and scanner for AI coding agents
+    license: Apache-2.0
+    post_install:
+      - Write-Host 'Run "privometry daemon install", then "privometry guard install" for each agent.'
 
 checksum:
   name_template: checksums.txt

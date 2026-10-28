@@ -1,5 +1,9 @@
 # riskfeed/v1
 
+## 1.0.0-draft.2 (2026-10-28)
+
+- `tool_manifest_hash` is defined exactly: each tool reduced to `name`, `description` and `inputSchema`, written as canonical JSON (keys sorted, no insignificant whitespace, `<`, `>` and `&` not escaped), tools sorted by name and joined with newlines, SHA-256 as `sha256:<hex>`. `specs/conformance/riskfeed/manifest-hashes.json` holds vectors from the Go implementation (`internal/riskfeed.ManifestHash`) that the feed service must reproduce.
+- How the edge uses the feed: an organization's catalog decision always wins; for an MCP server the catalog does not list, the feed's `default_verdict` applies (`deny` or `ask`, never weaker than the policy's verdict), and a server whose tools hash to none of its version's `tool_manifest_hash` values is asked about (`tool_manifest_changed`).
 ## 1.0.0-draft.1 (2026-10-23)
 
 - `riskfeed.schema.json`: one document type for snapshots and deltas (`kind`), with `feed` (community or curated), an increasing `sequence`, `base_sequence` and `removed` on deltas only.

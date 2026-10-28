@@ -41,6 +41,7 @@ func TestTypesCoverSchema(t *testing.T) {
 		{"Rule", compiler.Rule{}, schema.Defs["rule"].Properties, nil},
 		{"Conditions", compiler.Conditions{}, schema.Defs["facts"].Properties, nil},
 		{"Exception", compiler.Exception{}, schema.Defs["exception"].Properties, nil},
+		{"AllowEntry", compiler.AllowEntry{}, schema.Defs["allow_entry"].Properties, nil},
 	}
 	for _, c := range cases {
 		var fields []string

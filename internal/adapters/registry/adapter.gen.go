@@ -79,6 +79,13 @@ type AdapterDetect struct {
 	AppBinaries     map[string][]string `json:"app_binaries,omitempty"`
 	IDEExtensionIDs []string            `json:"ide_extension_ids,omitempty"`
 	VersionCmd      []string            `json:"version_cmd,omitempty"`
+
+	// Command-line flags that make the agent skip its permission prompts or its
+	// hooks, such as --dangerously-skip-permissions. An entry may name a value
+	// (--approval-mode yolo), matched as the next argument or after =. The daemon
+	// reports a running agent started with one as an integrity event
+	// (hooks_bypassed), recording the flag and never the command line.
+	BypassFlags []string `json:"bypass_flags,omitempty"`
 }
 
 // AdapterEnvOverride is generated from adapter/v1/adapter.schema.json#/properties/env_overrides/items.
@@ -242,6 +249,13 @@ type InstallTargetLock struct {
 // Hooks is generated from adapter/v1/adapter.schema.json#/$defs/hooks.
 type Hooks struct {
 	// Layout of the hook registration file; selects the writer guard install uses.
+	// gemini_settings: Gemini CLI settings.json, grouped like Claude Code with
+	// timeouts in milliseconds. copilot_hooks: a hooks file of Copilot CLI's own
+	// (version 1, camelCase events, one entry per command). antigravity_hooks:
+	// Antigravity's hooks.json, where each top-level key is a hook name holding
+	// event keys; Privometry writes the name privometry. PreToolUse and
+	// PostToolUse take matcher groups, other events a list of handlers; timeouts
+	// in seconds.
 	Registration   HooksRegistration `json:"registration"`
 	Install        HooksInstall      `json:"install"`
 	TimeoutSeconds *int64            `json:"timeout_seconds,omitempty"`
@@ -265,13 +279,22 @@ type Hooks struct {
 // HooksRegistration is generated from adapter/v1/adapter.schema.json#/$defs/hooks/properties/registration.
 //
 // Layout of the hook registration file; selects the writer guard install uses.
+// gemini_settings: Gemini CLI settings.json, grouped like Claude Code with
+// timeouts in milliseconds. copilot_hooks: a hooks file of Copilot CLI's own
+// (version 1, camelCase events, one entry per command). antigravity_hooks:
+// Antigravity's hooks.json, where each top-level key is a hook name holding
+// event keys; Privometry writes the name privometry. PreToolUse and PostToolUse
+// take matcher groups, other events a list of handlers; timeouts in seconds.
 type HooksRegistration string
 
 // Values of HooksRegistration.
 const (
-	HooksRegistrationClaudeSettings HooksRegistration = "claude_settings"
-	HooksRegistrationCursorHooks    HooksRegistration = "cursor_hooks"
-	HooksRegistrationCodexHooks     HooksRegistration = "codex_hooks"
+	HooksRegistrationClaudeSettings   HooksRegistration = "claude_settings"
+	HooksRegistrationCursorHooks      HooksRegistration = "cursor_hooks"
+	HooksRegistrationCodexHooks       HooksRegistration = "codex_hooks"
+	HooksRegistrationGeminiSettings   HooksRegistration = "gemini_settings"
+	HooksRegistrationCopilotHooks     HooksRegistration = "copilot_hooks"
+	HooksRegistrationAntigravityHooks HooksRegistration = "antigravity_hooks"
 )
 
 // HooksInstall is generated from adapter/v1/adapter.schema.json#/$defs/hooks/properties/install.
@@ -311,6 +334,10 @@ type HookEvent struct {
 
 	// Matcher in the agent's own syntax, written verbatim into the registration.
 	Matcher string `json:"matcher,omitempty"`
+
+	// Overrides hooks.timeout_seconds for this event, for agents that cap some
+	// events (Codex limits SessionEnd hooks to 3 seconds).
+	TimeoutSeconds *int64 `json:"timeout_seconds,omitempty"`
 
 	// Verdicts the agent honors for this event. Empty for observe-only events.
 	Verdicts []contract.Verdict `json:"verdicts"`
@@ -352,9 +379,9 @@ const (
 // What the hook client prints and returns. String values may use {message},
 // {rule_id} and {event_name}; the hook client escapes them for JSON.
 type Response struct {
-	ExitCode int64          `json:"exit_code"`
-	Stdout   map[string]any `json:"stdout,omitempty"`
-	Stderr   string         `json:"stderr,omitempty"`
+	ExitCode int64           `json:"exit_code"`
+	Stdout   *map[string]any `json:"stdout,omitempty"`
+	Stderr   string          `json:"stderr,omitempty"`
 }
 
 // AdapterSet is generated from adapter/v1/adapter-set.schema.json#.

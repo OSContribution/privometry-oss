@@ -84,7 +84,7 @@ privometry update           # download, verify, install, restart privometryd
 
 Releases are `privometry.release/v1` manifests (`specs/release/v1`) in DSSE envelopes, payload type `application/vnd.privometry.release+json`, signed by a `release` key. The manifest URL defaults to the latest GitLab release direct asset `release.json`; `--manifest` or `PRIVOMETRY_UPDATE_URL` override it. `internal/update` installs a release only when:
 
-1. the signature verifies against the release key set embedded in the binary (`internal/update/keys/release-keys.json`);
+1. the signature verifies against the release key set embedded in the binary (`internal/trust/keys/release-keys.json`, shared with signed definition sets);
 2. the manifest validates and has not passed `expires_at`, so an old manifest cannot be replayed forever;
 3. its version is newer than the running one by semver precedence (downgrades and reinstalls are refused, and development builds never update);
 4. the download for this OS and architecture, fetched over HTTPS with no redirect off HTTPS, has exactly the declared size and SHA-256;
@@ -93,7 +93,7 @@ Releases are `privometry.release/v1` manifests (`specs/release/v1`) in DSSE enve
 
 Binaries are staged next to the installed ones and swapped in with renames, restoring the old ones if any swap fails; then the service restarts so privometryd runs the new build. Homebrew and Scoop installs are refused with the package manager's command instead.
 
-**No release keys ship yet.** Until the owner of the release key is decided, `keys/release-keys.json` is absent and `privometry update` refuses with "this build has no release signing keys". The updater is tested with the conformance `release` test key, and `specs/conformance/signatures` has `release-valid` and `release-signed-by-policy-key` vectors for the Java side.
+**No release keys ship yet.** Until the owner of the release key is decided, `internal/trust/keys/release-keys.json` is absent and `privometry update` refuses with "this build has no release signing keys". The updater is tested with the conformance `release` test key, and `specs/conformance/signatures` has `release-valid` and `release-signed-by-policy-key` vectors for the Java side.
 
 ## Known gaps
 

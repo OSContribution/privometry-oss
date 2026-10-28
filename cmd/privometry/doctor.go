@@ -14,12 +14,12 @@ import (
 	"strings"
 	"time"
 
-	adapterdefs "gitlab.com/cn-solutions/privometry/privometry-oss/adapter-defs"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/adapters/registry"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/buildinfo"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/contract"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/daemon"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/daemon/service"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/definitions"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/guard"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/hookclient"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/ipc"
@@ -118,6 +118,7 @@ func diagnose(env platform.Env, probe bool) *doctorRun {
 	r.checkFailModes()
 	r.checkSpool()
 	r.checkAgents()
+	r.checkDefinitions()
 	r.checkPolicy()
 	r.checkAlerts()
 	return r
@@ -382,7 +383,7 @@ func (r *doctorRun) checkSpool() {
 }
 
 func (r *doctorRun) checkAgents() {
-	reg, err := registry.Load(adapterdefs.FS)
+	reg, err := loadAdapters(r.env)
 	if err != nil {
 		r.add(Check{ID: "agents", Title: "Agents", Status: "fail", Detail: err.Error()})
 		return
@@ -442,17 +443,36 @@ func appEngine(a registry.Adapter, env platform.Env) string {
 	return ""
 }
 
+// checkDefinitions reports which adapter definitions and detector packs are
+// in use, and warns when an installed signed set is ignored.
+func (r *doctorRun) checkDefinitions() {
+	c := Check{ID: "definitions", Title: "Definitions", Status: "ok"}
+	var parts, problems []string
+	for _, st := range definitions.Statuses(definitionOptions(r.env)) {
+		parts = append(parts, fmt.Sprintf("%s: %s set %d", strings.ToLower(st.Kind.Label()), st.Source, st.SetVersion))
+		if st.Problem != "" {
+			problems = append(problems, strings.ToLower(st.Kind.Label())+": "+st.Problem)
+		}
+	}
+	c.Detail = strings.Join(parts, "; ")
+	if len(problems) > 0 {
+		c.Status, c.Detail = "warn", c.Detail+"; "+strings.Join(problems, "; ")
+		c.Fix = "privometry definitions update installs the latest signed sets; the built-in ones protect you meanwhile."
+	}
+	r.add(c)
+}
+
 func (r *doctorRun) checkPolicy() {
 	c := Check{ID: "policy", Title: "Policy", Status: "ok"}
 	cwd, _ := os.Getwd()
 	r.repo = platform.GitRoot(cwd)
-	packs, err := policy.BuiltinPacks()
+	packs, err := availablePacks(r.env, nil)
 	if err != nil {
 		c.Status, c.Detail = "fail", err.Error()
 		r.add(c)
 		return
 	}
-	sources, errs := policy.LocalSources(r.env.Home, r.repo)
+	sources, errs := policy.Sources(r.env, r.repo, time.Now())
 	res, err := merge.Merge(merge.Input{Packs: packs, Policies: sources, Now: time.Now()})
 	if err == nil {
 		_, err = policy.New(res)

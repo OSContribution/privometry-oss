@@ -100,13 +100,15 @@ func TestFeatureRegistry(t *testing.T) {
 // verify carries a payload that is valid against its own schema.
 func TestSignedPayloads(t *testing.T) {
 	schemas := map[string]string{
-		"application/vnd.privometry.bundle+json":       "policy/v1/bundle.schema.json",
-		"application/vnd.privometry.entitlements+json": "entitlements/v1/entitlements.schema.json",
-		"application/vnd.privometry.license+json":      "entitlements/v1/license.schema.json",
-		"application/vnd.privometry.riskfeed+json":     "riskfeed/v1/riskfeed.schema.json",
-		"application/vnd.privometry.adapters+json":     "adapter/v1/adapter-set.schema.json",
-		"application/vnd.privometry.keyset+json":       "common/v1/keyset.schema.json",
-		"application/vnd.privometry.release+json":      "release/v1/release.schema.json",
+		"application/vnd.privometry.bundle+json":        "policy/v1/bundle.schema.json",
+		"application/vnd.privometry.entitlements+json":  "entitlements/v1/entitlements.schema.json",
+		"application/vnd.privometry.license+json":       "entitlements/v1/license.schema.json",
+		"application/vnd.privometry.riskfeed+json":      "riskfeed/v1/riskfeed.schema.json",
+		"application/vnd.privometry.adapters+json":      "adapter/v1/adapter-set.schema.json",
+		"application/vnd.privometry.detectorpacks+json": "detectorpack/v1/pack-set.schema.json",
+		"application/vnd.privometry.keyset+json":        "common/v1/keyset.schema.json",
+		"application/vnd.privometry.release+json":       "release/v1/release.schema.json",
+		"application/vnd.privometry.communitypack+json": "communitypack/v1/communitypack.schema.json",
 	}
 	raw, err := os.ReadFile("conformance/signatures/vectors.json")
 	if err != nil {

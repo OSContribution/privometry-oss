@@ -1,6 +1,7 @@
 // Package ipc is the protocol between privometry-hook (and the CLI) and the
 // daemon: one newline-terminated JSON request and one response per
-// connection, over a Unix socket only the user can reach.
+// connection, over a Unix socket (a named pipe on Windows) only the user can
+// reach.
 package ipc
 
 import (
@@ -10,11 +11,7 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"os"
-	"path/filepath"
 	"time"
-
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/platform"
 )
 
 // Version is the protocol version; the daemon rejects others.
@@ -27,8 +24,9 @@ const MaxMessage = 8 << 20
 // Request is one call to the daemon.
 type Request struct {
 	V    int          `json:"v"`
-	Op   string       `json:"op"` // hook, ping, status, events or probe
+	Op   string       `json:"op"` // hook, mcp, ping, status, events or probe
 	Hook *HookRequest `json:"hook,omitempty"`
+	MCP  *MCPRequest  `json:"mcp,omitempty"`
 	// Query is the argument of non-hook operations, such as events.
 	Query json.RawMessage `json:"query,omitempty"`
 }
@@ -42,6 +40,30 @@ type HookRequest struct {
 	// carries a valid one is decided as usual but not recorded, so privometry
 	// doctor can test the whole path without writing fake agent activity.
 	Probe string `json:"probe,omitempty"`
+}
+
+// MCPRequest carries one message privometry-mcp-shim saw between an agent and
+// the local MCP server it wraps.
+type MCPRequest struct {
+	Agent   string `json:"agent"`   // agent product whose config launched the shim, or other
+	Server  string `json:"server"`  // the server's name in that config
+	Session string `json:"session"` // one per shim process
+	Cwd     string `json:"cwd"`
+	// Phase is call (a tools/call request, before it is forwarded), result (its
+	// result) or tools (a tools/list result).
+	Phase  string          `json:"phase"`
+	CallID string          `json:"call_id,omitempty"` // the JSON-RPC id of the tools/call
+	Tool   string          `json:"tool,omitempty"`
+	Body   json.RawMessage `json:"body,omitempty"` // the call's arguments, its result, or the tools/list result
+}
+
+// MCPDecision is the Data of the response to an mcp call.
+type MCPDecision struct {
+	Verdict string `json:"verdict"` // allow or deny; the shim cannot ask
+	Message string `json:"message,omitempty"`
+	// Enforced is false when the agent's own Privometry hook decides its MCP
+	// calls, so the shim only watches.
+	Enforced bool `json:"enforced"`
 }
 
 // Response is the daemon's answer. For a hook, Stdout, Stderr and ExitCode
@@ -63,7 +85,7 @@ type Response struct {
 // within timeout.
 func Call(addr string, req Request, timeout time.Duration) (Response, error) {
 	req.V = Version
-	conn, err := net.DialTimeout("unix", addr, timeout)
+	conn, err := dial(addr, timeout)
 	if err != nil {
 		return Response{}, err
 	}
@@ -103,40 +125,6 @@ func readMessage(r io.Reader, v any) error {
 		return errors.New("ipc: message too large")
 	}
 	return json.Unmarshal(line, v)
-}
-
-// MaxSocketPath is the longest Unix socket path every supported OS accepts
-// (macOS allows 104 bytes including the terminator).
-const MaxSocketPath = 103
-
-// Listen opens the daemon socket at addr. The parent directory must be
-// private to the user; a stale socket left by a crashed daemon is removed,
-// but a live one is an error.
-func Listen(addr string) (net.Listener, error) {
-	if len(addr) > MaxSocketPath {
-		return nil, fmt.Errorf("ipc: socket path is %d bytes, over the %d-byte limit: %s (set PRIVOMETRY_HOME to a shorter folder)", len(addr), MaxSocketPath, addr)
-	}
-	if err := platform.EnsurePrivateDir(filepath.Dir(addr)); err != nil {
-		return nil, err
-	}
-	if _, err := os.Lstat(addr); err == nil {
-		if c, err := net.DialTimeout("unix", addr, 200*time.Millisecond); err == nil {
-			c.Close()
-			return nil, fmt.Errorf("ipc: another daemon is listening on %s", addr)
-		}
-		if err := os.Remove(addr); err != nil {
-			return nil, err
-		}
-	}
-	l, err := net.Listen("unix", addr)
-	if err != nil {
-		return nil, err
-	}
-	if err := os.Chmod(addr, 0o600); err != nil {
-		l.Close()
-		return nil, err
-	}
-	return l, nil
 }
 
 // Handler answers one request.

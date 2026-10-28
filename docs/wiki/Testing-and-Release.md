@@ -36,6 +36,8 @@ Tests that bind local sockets require an execution environment that permits Unix
 
 The native GitLab pipeline in `.gitlab-ci.yml` runs for merge requests, the default branch, tags, and manually started pipelines. It performs formatting and vet checks, verifies generated types and deterministic conformance vectors, runs race-enabled tests with a coverage artifact, builds all binaries, validates the repository policy, and scans repository configuration and memory files. High or critical Privometry findings fail the pipeline; the SARIF report remains downloadable for 30 days even when the security job fails.
 
+In merge request pipelines the security job also diffs the merge request against `CI_MERGE_REQUEST_DIFF_BASE_SHA` and passes the list to `privometry scan --changed`: changed agent files and the repo policy are flagged, and every changed file is scanned with the content detectors. The list is kept as `privometry-changes.txt`. This repo's detector packs, specs, tests and docs quote credentials and attack text on purpose; `.privometry/policy.yaml` allowlists them by path, so only new occurrences elsewhere fail the gate. Changing that file is itself flagged for review.
+
 The existing GitHub workflows are optional mirrors for downstream users. They run the Linux/macOS test matrix, linting, a GoReleaser snapshot, CodeQL, JSON syntax checks, SBOM generation, and dependency inventory. GitLab remains the canonical project and CI environment.
 
 The Go build and module caches are stored below the CI project directory and keyed per GitLab project. No user configuration or machine-wide agent state is scanned in CI; `--no-machine` limits the security gate to the checked-out repository. The release-compliance job also creates a deterministic CycloneDX 1.5 SBOM and a dependency-license policy report from the modules linked into the four release commands. A missing or unrecognized dependency license fails the job, while both reports remain available for review.
@@ -59,7 +61,11 @@ GoReleaser builds static binaries for macOS and Linux on `amd64` and `arm64`:
 - `privometry-hook`
 - `privometry-mcp-shim`
 
-Archives include `LICENSE`, `NOTICE`, `README.md`, `privometry.cdx.json`, and `dependency-licenses.json`, plus a checksum manifest. Generate and inspect the compliance files locally with `make release-metadata`. Windows release packaging is not enabled yet.
+Archives include `LICENSE`, `NOTICE`, `README.md`, `privometry.cdx.json`, and `dependency-licenses.json`, plus a checksum manifest. Generate and inspect the compliance files locally with `make release-metadata`. Windows archives are zip files; `privometryd.exe` is built for the GUI subsystem so its logon task opens no console window. A Scoop manifest is generated into `dist/` (`skip_upload` until the bucket and release signing exist).
+
+## Signed definitions
+
+Adapter definitions and detector packs also ship as sets signed with the release key, so sensors in the field get data-only updates (`privometry definitions update`). Bump `SetVersion` in `adapter-defs/embed.go` or `detectorpacks/embed.go` with every change to those folders (`TestBuiltInSetVersionsArePinned` enforces it), then run `go run ./scripts/sign-definitions` and attach `adapters.json` and `detectorpacks.json` to the release. See `docs/definitions.md`.
 
 ## Signing requirements
 

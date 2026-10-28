@@ -9,9 +9,11 @@ import (
 	"strings"
 	"time"
 
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/cloud/upload"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/content"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/contract"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/events"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/platform"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/policy/intent"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/redact"
 )
@@ -99,8 +101,9 @@ type hit struct {
 }
 
 // scanPieces runs the detectors over every piece until the deadline (zero
-// means none) and reports whether it finished.
-func (d *Daemon) scanPieces(ps []piece, deadline time.Time) ([]hit, bool) {
+// means none) and reports whether it finished. Findings the allowlist covers
+// are dropped; written files match its paths relative to repo.
+func (d *Daemon) scanPieces(ps []piece, deadline time.Time, allow *content.Allowlist, repo string) ([]hit, bool) {
 	var out []hit
 	for i, p := range ps {
 		text := p.text
@@ -108,6 +111,11 @@ func (d *Daemon) scanPieces(ps []piece, deadline time.Time) ([]hit, bool) {
 			text = text[:content.PreActionLimit]
 		}
 		fs, complete := d.content.ScanWithin(p.source, text, deadline)
+		where := ""
+		if p.path != "" {
+			where = platform.DisplayPath(p.path, d.cfg.Env.Home, repo)
+		}
+		fs, _ = allow.Filter(fs, text, where, d.cfg.Now())
 		for _, f := range fs {
 			out = append(out, hit{f, i})
 		}
@@ -174,7 +182,7 @@ func (d *Daemon) findingEvent(c call, sess *sessionInfo, action *events.Action, 
 		MCP:            mcp,
 		ContentFinding: cf,
 		Redaction:      map[string]contract.PrivacyLevel{"action.target": contract.PrivacyLevelRedacted, "user.local_user": contract.PrivacyLevelClear},
-		Ext:            map[string]any{"x_privometry_title": f.Title},
+		Ext:            findingExt(f),
 	}
 	if remote != "" {
 		ev.Repo = &events.Repo{Remote: remote}
@@ -227,7 +235,7 @@ func (d *Daemon) scanOutput(c call, sess *sessionInfo, toolName string) {
 		return
 	}
 	d.background(func() {
-		fs := d.content.Scan(content.SourceToolOutput, text)
+		fs, _ := d.allowlistFor(sess.Git).Filter(d.content.Scan(content.SourceToolOutput, text), text, "", d.cfg.Now())
 		if len(fs) == 0 {
 			return
 		}
@@ -267,4 +275,14 @@ func contentSalt(get func(string) (string, error), set func(string, string) erro
 		return nil, err
 	}
 	return b, set("content_salt", hex.EncodeToString(b))
+}
+
+// findingExt is a finding's local-only ext: its title and, when the
+// fingerprint is under the organization's hash key, that key's ID.
+func findingExt(f content.Finding) map[string]any {
+	ext := map[string]any{"x_privometry_title": f.Title}
+	if f.FingerprintKey != "" && f.Fingerprint != "" {
+		ext[upload.FingerprintKeyExt] = f.FingerprintKey
+	}
+	return ext
 }

@@ -8,8 +8,6 @@ import (
 	"strings"
 	"time"
 
-	adapterdefs "gitlab.com/cn-solutions/privometry/privometry-oss/adapter-defs"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/adapters/registry"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/buildinfo"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/guard"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/platform"
@@ -47,7 +45,7 @@ func webViews(env platform.Env) map[string]webui.View {
 }
 
 func agentsView(env platform.Env) ([]agentView, error) {
-	reg, err := registry.Load(adapterdefs.FS)
+	reg, err := loadAdapters(env)
 	if err != nil {
 		return nil, err
 	}
@@ -82,11 +80,16 @@ type scanAgent struct {
 }
 
 func scanView(env platform.Env) (any, error) {
-	reg, err := registry.Load(adapterdefs.FS)
+	reg, err := loadAdapters(env)
 	if err != nil {
 		return nil, err
 	}
-	res, err := scanner.Scan(reg, discover.Options{Env: env, Machine: true})
+	packs, err := loadDetectors(env)
+	if err != nil {
+		return nil, err
+	}
+	sources, _ := policy.Sources(env, "", time.Now())
+	res, err := scanner.Scan(reg, scanner.Options{Options: discover.Options{Env: env, Machine: true}, Detectors: packs, Allowlist: policy.Allowlist(sources)})
 	if err != nil {
 		return nil, err
 	}
@@ -115,11 +118,11 @@ type ruleView struct {
 }
 
 func policyView(env platform.Env) (any, error) {
-	packs, err := policy.BuiltinPacks()
+	packs, err := availablePacks(env, nil)
 	if err != nil {
 		return nil, err
 	}
-	sources, errs := policy.LocalSources(env.Home, "")
+	sources, errs := policy.Sources(env, "", time.Now())
 	res, err := merge.Merge(merge.Input{Packs: packs, Policies: sources, Now: time.Now()})
 	if err != nil {
 		return nil, err

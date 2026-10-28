@@ -52,10 +52,14 @@ func Table(w io.Writer, res *scanner.Result) error {
 
 	if len(res.Agents) == 0 {
 		fmt.Fprintln(w, "No coding agents found.")
-		return nil
+		if len(res.Findings) == 0 && len(res.ContentFindings) == 0 {
+			return nil
+		}
 	}
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(tw, "AGENT\tVERSION\tSUPPORTED\tPRIVOMETRY HOOK\tCONFIG FILES\tMCP SERVERS\tSKILLS\tPLUGINS\tMEMORY FILES")
+	if len(res.Agents) > 0 {
+		fmt.Fprintln(tw, "AGENT\tVERSION\tSUPPORTED\tPRIVOMETRY HOOK\tCONFIG FILES\tMCP SERVERS\tSKILLS\tPLUGINS\tMEMORY FILES")
+	}
 	for _, a := range res.Agents {
 		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%d\t%d\t%d\t%d\t%d\n", a.Name, orDash(a.Version), supported(a), hooked(a),
 			configCount(a), len(a.MCPServers), len(a.Skills), len(a.Plugins), len(a.MemoryFiles))
@@ -119,13 +123,25 @@ func Table(w io.Writer, res *scanner.Result) error {
 	for _, a := range res.Agents {
 		names[a.Product] = a.Name
 	}
+	name := func(p contract.AgentProduct) string {
+		switch {
+		case names[p] != "":
+			return names[p]
+		case p == "":
+			return "Repository"
+		}
+		return string(p) // an agent file deleted in a change: the agent is no longer found
+	}
 	if len(res.ContentFindings) > 0 {
-		fmt.Fprintf(w, "\nIN MEMORY FILES, SKILLS AND CONFIGS (%d)\n", len(res.ContentFindings))
+		fmt.Fprintf(w, "\nIN MEMORY FILES, SKILLS, CONFIGS AND CHANGED FILES (%d)\n", len(res.ContentFindings))
 		for _, f := range res.ContentFindings {
-			fmt.Fprintf(w, "  %-8s %s: %s\n", strings.ToUpper(string(f.Severity)), names[f.Agent], f.Title)
+			fmt.Fprintf(w, "  %-8s %s: %s\n", strings.ToUpper(string(f.Severity)), name(f.Agent), f.Title)
 			fmt.Fprintf(w, "           in %s:%d (%s)\n", f.Path, f.Line, f.Detector)
 			fmt.Fprintf(w, "           %s\n", truncate(f.Excerpt, 120))
 		}
+	}
+	if res.Allowlisted > 0 {
+		fmt.Fprintf(w, "\n%d content finding(s) skipped by allowlists in Privometry policy files.\n", res.Allowlisted)
 	}
 	if len(res.Findings) == 0 {
 		if len(res.ContentFindings) == 0 {
@@ -139,7 +155,7 @@ func Table(w io.Writer, res *scanner.Result) error {
 		if f.Line > 0 {
 			loc = fmt.Sprintf("%s:%d", f.Path, f.Line)
 		}
-		fmt.Fprintf(w, "  %-8s %s: %s\n", strings.ToUpper(string(f.Severity)), names[f.Agent], f.Message)
+		fmt.Fprintf(w, "  %-8s %s: %s\n", strings.ToUpper(string(f.Severity)), name(f.Agent), f.Message)
 		if loc != "" {
 			fmt.Fprintf(w, "           in %s\n", loc)
 		}

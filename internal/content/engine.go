@@ -11,6 +11,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"sync/atomic"
 	"time"
 	"unicode/utf8"
 )
@@ -29,6 +30,13 @@ type Engine struct {
 	detectors []*Compiled
 	salt      []byte
 	keywords  *keywordIndex
+	fpKey     atomic.Pointer[fingerprintKey]
+}
+
+// fingerprintKey keys credential fingerprints instead of the salt.
+type fingerprintKey struct {
+	key []byte
+	id  string
 }
 
 // Options configure an engine.
@@ -36,6 +44,26 @@ type Options struct {
 	// Salt keys credential fingerprints and path hashes. Without one,
 	// findings carry no fingerprint.
 	Salt []byte
+}
+
+// SetFingerprintKey makes credential fingerprints use key, which id names
+// (an enrolled device's organization hash key, so the same secret matches on
+// every device of the organization). A nil key goes back to the salt. Path
+// hashes keep using the salt.
+func (e *Engine) SetFingerprintKey(key []byte, id string) {
+	if len(key) == 0 {
+		e.fpKey.Store(nil)
+		return
+	}
+	e.fpKey.Store(&fingerprintKey{key: append([]byte(nil), key...), id: id})
+}
+
+// FingerprintKeyID names the key credential fingerprints use now, "" for the salt.
+func (e *Engine) FingerprintKeyID() string {
+	if k := e.fpKey.Load(); k != nil {
+		return k.id
+	}
+	return ""
 }
 
 // New builds an engine from loaded packs.
@@ -72,6 +100,8 @@ type Finding struct {
 	// characters revealed. It stays on the device.
 	Excerpt     string
 	Fingerprint string // credentials, when the engine has a salt: hmac-sha256:<hex>
+	// FingerprintKey names the key of Fingerprint when it is not the salt.
+	FingerprintKey string
 
 	kind                 DetectorKind
 	valueStart, valueEnd int
@@ -435,7 +465,9 @@ func (e *Engine) finding(d *Compiled, source Source, text string, s span) Findin
 	value := text[s.valueStart:s.valueEnd]
 	if d.Category == CategoryCredential {
 		f.Excerpt = excerpt(text, s.valueStart, s.valueEnd, mask(value))
-		if len(e.salt) > 0 {
+		if k := e.fpKey.Load(); k != nil {
+			f.Fingerprint, f.FingerprintKey = hmacHex(k.key, value), k.id
+		} else if len(e.salt) > 0 {
 			f.Fingerprint = e.Hash(value)
 		}
 	} else {
@@ -448,9 +480,12 @@ func (e *Engine) finding(d *Compiled, source Source, text string, s span) Findin
 	return f
 }
 
-// Hash is the salted hash used for fingerprints and path hashes.
-func (e *Engine) Hash(v string) string {
-	m := hmac.New(sha256.New, e.salt)
+// Hash is the salted hash used for path hashes, and for fingerprints when
+// no fingerprint key is set.
+func (e *Engine) Hash(v string) string { return hmacHex(e.salt, v) }
+
+func hmacHex(key []byte, v string) string {
+	m := hmac.New(sha256.New, key)
 	m.Write([]byte(v))
 	return "hmac-sha256:" + hex.EncodeToString(m.Sum(nil))
 }

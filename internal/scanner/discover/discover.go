@@ -456,6 +456,9 @@ func readLimited(p string) ([]byte, error) {
 
 // hooks lists the hook commands in one config file.
 func (d *discoverer) hooks(reg registry.HooksRegistration, cf *ConfigFile) []Hook {
+	if reg == registry.HooksRegistrationAntigravityHooks {
+		return d.namedHooks(cf)
+	}
 	var out []Hook
 	byEvent := parsers.Map(parsers.Lookup(cf.Doc, "/hooks"))
 	events := make([]string, 0, len(byEvent))
@@ -468,9 +471,17 @@ func (d *discoverer) hooks(reg registry.HooksRegistration, cf *ConfigFile) []Hoo
 			m := parsers.Map(entry)
 			matcher := parsers.String(m["matcher"])
 			var commands []string
-			if reg == registry.HooksRegistrationCursorHooks {
+			switch reg {
+			case registry.HooksRegistrationCursorHooks:
 				commands = append(commands, parsers.String(m["command"]))
-			} else {
+			case registry.HooksRegistrationCopilotHooks:
+				for _, key := range []string{"bash", "powershell", "command"} {
+					if c := parsers.String(m[key]); c != "" {
+						commands = append(commands, strings.TrimPrefix(c, "& "))
+						break
+					}
+				}
+			default:
 				for _, h := range parsers.List(m["hooks"]) {
 					commands = append(commands, parsers.String(parsers.Map(h)["command"]))
 				}
@@ -487,11 +498,65 @@ func (d *discoverer) hooks(reg registry.HooksRegistration, cf *ConfigFile) []Hoo
 	return out
 }
 
+// namedHooks reads Antigravity's hooks file, where each top-level key names a
+// hook that holds events; PreToolUse and PostToolUse hold matcher groups.
+// Hooks with "enabled": false are skipped.
+func (d *discoverer) namedHooks(cf *ConfigFile) []Hook {
+	var out []Hook
+	byName := parsers.Map(cf.Doc)
+	names := make([]string, 0, len(byName))
+	for n := range byName {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		def := parsers.Map(byName[name])
+		if on, ok := def["enabled"].(bool); ok && !on {
+			continue
+		}
+		events := make([]string, 0, len(def))
+		for e := range def {
+			if e != "enabled" {
+				events = append(events, e)
+			}
+		}
+		sort.Strings(events)
+		for _, event := range events {
+			for _, item := range parsers.List(def[event]) {
+				m := parsers.Map(item)
+				handlers := []any{item}
+				if event == "PreToolUse" || event == "PostToolUse" {
+					handlers = parsers.List(m["hooks"])
+				}
+				for _, h := range handlers {
+					c := parsers.String(parsers.Map(h)["command"])
+					if c == "" {
+						continue
+					}
+					out = append(out, Hook{Tier: cf.Tier, Path: cf.Path, Event: event, Matcher: parsers.String(m["matcher"]),
+						Command: d.redact(c), Privometry: isPrivometryHook(c)})
+				}
+			}
+		}
+	}
+	return out
+}
+
 func escapePointer(s string) string { return strings.NewReplacer("~", "~0", "/", "~1").Replace(s) }
 
 func isPrivometryHook(command string) bool {
+	command = strings.TrimSpace(command)
 	fields := strings.Fields(command)
-	return len(fields) > 0 && strings.HasPrefix(filepath.Base(strings.Trim(fields[0], `"'`)), "privometry-hook")
+	if len(fields) == 0 {
+		return false
+	}
+	first := strings.Trim(fields[0], `"'`)
+	if q := command[0]; q == '"' || q == '\'' { // a quoted path may hold spaces
+		if end := strings.IndexByte(command[1:], q); end >= 0 {
+			first = command[1 : end+1]
+		}
+	}
+	return strings.HasPrefix(first[strings.LastIndexAny(first, `/\`)+1:], "privometry-hook")
 }
 
 // mcpServers reads the server map at pointer.
@@ -509,8 +574,10 @@ func (d *discoverer) mcpServers(cf *ConfigFile, pointer string) []MCPServer {
 			s := MCPServer{Name: name, Tier: cf.Tier, Path: cf.Path,
 				Pointer: found.pointer + "/" + escapePointer(name), RawPointer: rawPointer, Transport: "stdio"}
 			url := parsers.String(m["url"])
-			if url == "" {
-				url = parsers.String(m["httpUrl"])
+			for _, key := range []string{"httpUrl", "serverUrl"} { // Gemini CLI, Antigravity
+				if url == "" {
+					url = parsers.String(m[key])
+				}
 			}
 			if url != "" {
 				s.Transport = "http"
@@ -688,18 +755,7 @@ func (d *discoverer) real(p string) string {
 func (d *discoverer) display(p string) string { return Display(p, d.opts.Env.Home, d.opts.RepoRoot) }
 
 // Display is the path form used in every report.
-func Display(p, home, repoRoot string) string {
-	if repoRoot != "" && (p == repoRoot || strings.HasPrefix(p, repoRoot+"/")) {
-		if rel := strings.TrimPrefix(strings.TrimPrefix(p, repoRoot), "/"); rel != "" {
-			return rel
-		}
-		return "."
-	}
-	if home != "" && (p == home || strings.HasPrefix(p, home+"/")) {
-		return "~" + strings.TrimPrefix(p, home)
-	}
-	return p
-}
+func Display(p, home, repoRoot string) string { return platform.DisplayPath(p, home, repoRoot) }
 
 func sortAgent(a *Agent) {
 	sort.SliceStable(a.Configs, func(i, j int) bool {

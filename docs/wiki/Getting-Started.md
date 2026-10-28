@@ -6,10 +6,10 @@ This guide builds Privometry from source and connects it to a supported local co
 
 - Go 1.25 or newer
 - Git
-- macOS or Linux for daemon service installation
-- At least one supported agent: Claude Code `>=2.1.295 <3.0.0`, Codex `>=0.14.0 <1.0.0`, or Cursor `>=1.7.0 <3.0.0`
+- macOS, Linux or Windows 10/11 for daemon service installation
+- At least one supported agent: Claude Code `>=2.1.295 <3.0.0`, Codex `>=0.14.0 <1.0.0`, Cursor `>=1.7.0 <3.0.0`, Gemini CLI `>=0.26.0 <1.0.0`, Copilot CLI `>=1.0.0 <2.0.0` or Antigravity `>=1.1.21 <2.0.0`
 
-Windows-specific paths and permissions exist in the codebase, but background service installation is not implemented yet.
+On Windows the daemon runs from a per-user Task Scheduler logon task and listens on a named pipe; see `docs/daemon.md`. Windows support is tested in CI and with simulated Windows environments, not yet on a Windows machine.
 
 ## Build
 

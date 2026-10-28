@@ -83,6 +83,18 @@ type Policy struct {
 	Rules       []Rule              `yaml:"rules"`
 	Overrides   map[string]Override `yaml:"overrides"`
 	Exceptions  []Exception         `yaml:"exceptions"`
+	Allowlist   []AllowEntry        `yaml:"allowlist"`
+}
+
+// AllowEntry ignores content findings of some detectors where its paths,
+// values or both match (PRD SCAN-09). It does not affect rules: the
+// content scanner applies it before facts reach the policy.
+type AllowEntry struct {
+	Detectors []string `yaml:"detectors"`
+	Paths     []string `yaml:"paths"`
+	Values    []string `yaml:"values"`
+	Reason    string   `yaml:"reason"`
+	ExpiresAt string   `yaml:"expires_at"`
 }
 
 // Override changes a rule from another layer or pack. Written either as a

@@ -1,5 +1,27 @@
 # adapter/v1
 
+## 1.0.0-draft.6 (2026-10-28)
+
+- `detect.bypass_flags`: flags that make the agent skip its permission prompts or its hooks (an entry may name a value, matched as the next argument or after `=`). The shipped definitions list Claude Code `--dangerously-skip-permissions` and `--permission-mode bypassPermissions`, Codex `--dangerously-bypass-approvals-and-sandbox`, Gemini CLI `--yolo`, `-y` and `--approval-mode yolo`, Copilot CLI `--allow-all-tools` and `--yolo`, and Antigravity `--dangerously-skip-permissions`.
+- Antigravity's observe-only events reply `{}`, as its documentation shows; the generated Go type keeps an empty `stdout` object apart from `null`.
+
+## 1.0.0-draft.5 (2026-10-28)
+
+- `hooks.registration` gains `antigravity_hooks`: Antigravity's `hooks.json`, where each top-level key names a hook holding event keys (Privometry writes `privometry` and leaves other hooks alone); `PreToolUse` and `PostToolUse` take matcher groups, other events a list of handlers; timeouts in seconds. Pre-tool replies carry a top-level `decision` (`allow`, `auto_approve`, `deny`, `ask`, `force_ask`, `deny_unless_prior_grant`), which the schema enforces.
+- New shipped definition `antigravity`, from documentation (`verified: []`): the agy CLI, desktop app and IDE (global `~/.gemini/config/hooks.json`, workspace `.agents/hooks.json` behind folder trust), MCP servers in `mcp_config.json` (`serverUrl` for remote servers), rules (`AGENTS.md`, `GEMINI.md`, `.agents/rules/*.md`, global rule folders), skills and permissions; `PreToolUse`, `PostToolUse` and `SessionStart`. Request pointers may index arrays (`/workspacePaths/0`). Policy asks reply `force_ask`, so an earlier "Always Allow" does not skip them.
+- Examples: the Antigravity definition; the adapter-set example now holds six adapters.
+
+## 1.0.0-draft.4 (2026-10-28)
+
+- `hooks.registration` gains `gemini_settings` (Gemini CLI `settings.json`: grouped like Claude Code, timeouts in milliseconds, decisions in a top-level `decision` of `allow` or `deny`) and `copilot_hooks` (a Copilot CLI hooks file of its own: `version: 1`, camelCase events, the command in `bash` or `powershell`, decisions in a top-level `permissionDecision` of `allow`, `ask` or `deny`). The schema enforces each reply shape.
+- New shipped definitions, from documentation (`verified: []`): Gemini CLI (`~/.gemini/settings.json` and the project and system tiers, `GEMINI.md`, skills, MCP servers; `BeforeTool`, `AfterTool`, `BeforeAgent`, `SessionStart`, `SessionEnd`) and Copilot CLI (`~/.copilot/hooks/privometry.json`, repo `.github/hooks/*.json`, policy files, `copilot-instructions.md`, `AGENTS.md`, `~/.copilot/mcp-config.json`; `preToolUse`, `postToolUse`, `userPromptSubmitted`, `sessionStart`, `sessionEnd`). Copilot's `toolArgs` arrives as a JSON-encoded string; consumers decode a string `tool_input` that holds a JSON object.
+- Examples: both definitions; the adapter-set example now holds five adapters.
+
+## 1.0.0-draft.3 (2026-10-24)
+
+- Hook events may set `timeout_seconds`, overriding `hooks.timeout_seconds` for agents that cap some events. Codex limits `SessionEnd` hooks to 3 seconds and warns on every run when one is registered with more.
+- The shipped Codex definition is verified against payloads recorded from Codex CLI 0.164.0 (`test/fixtures/codex_cli/0.164.0`): `UserPromptSubmit` carries `turn_id` (no `prompt_id`), and the definition now registers `PostToolUse` and `SessionEnd`.
+
 ## 1.0.0-draft.2 (2026-10-23)
 
 - MCP source pointers may contain a whole-segment `*` wildcard. The Claude Code definition uses `/projects/*/mcpServers` to discover project-scoped servers in `~/.claude.json`.

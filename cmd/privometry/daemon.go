@@ -21,7 +21,8 @@ import (
 
 const daemonUsage = `Usage: privometry daemon <install|uninstall|status|restart> [flags]
 
-  install     Run privometryd in the background at login (launchd on macOS, systemd on Linux)
+  install     Run privometryd in the background at login (launchd on macOS, systemd on Linux,
+              a Task Scheduler logon task on Windows)
   uninstall   Stop privometryd and remove the service
   status      Show the service, the daemon and each agent's hook activity
   restart     Restart the service
@@ -75,12 +76,23 @@ func daemonCmd(args []string, stdout, stderr io.Writer) int {
 			for _, c := range plan.Load {
 				fmt.Fprintf(stdout, "  %s\n", strings.Join(c, " "))
 			}
+			if f := plan.Fallback; f != nil {
+				fmt.Fprintf(stdout, "If Windows refuses the task, instead run:\n")
+				for _, c := range f.Load {
+					fmt.Fprintf(stdout, "  %s\n", strings.Join(c, " "))
+				}
+				fmt.Fprintf(stdout, "and start %s\n", strings.Join(f.Start, " "))
+			}
 			return 0
 		}
 		if err := service.Install(plan, opts); err != nil {
 			return fail(stderr, err)
 		}
-		fmt.Fprintf(stdout, "Installed %s\n", display(plan.Path))
+		if plan.Note != "" {
+			fmt.Fprintln(stdout, plan.Note)
+		} else {
+			fmt.Fprintf(stdout, "Installed %s\n", display(plan.Path))
+		}
 		if waitForDaemon(env, 5*time.Second) {
 			fmt.Fprintln(stdout, "privometryd is running.")
 			return 0
@@ -144,6 +156,9 @@ func daemonStatus(env platform.Env, plan *service.Plan, opts service.Options, fo
 		svc = fmt.Sprintf("running (pid %d)", s.PID)
 	case s.Installed:
 		svc = "installed, not running"
+	}
+	if r.Service.Installed && r.Service.RunKey {
+		svc += "; started from the Run key, as Windows refused the logon task"
 	}
 	if r.Service.Installed && !r.Service.Current {
 		svc += "; service file is out of date (run: privometry daemon install)"

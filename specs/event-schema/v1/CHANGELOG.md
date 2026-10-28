@@ -1,5 +1,17 @@
 # event-schema/v1
 
+## 1.0.0-draft.5 (2026-10-28)
+
+- `integrity.check` gains `hooks_bypassed`: a running agent was started with a flag that skips its permission prompts or its hooks (adapter `detect.bypass_flags`), such as Antigravity's `--dangerously-skip-permissions`, which turns its hooks off. `detail` names the flag; the command line is never read into the event.
+
+## 1.0.0-draft.4 (2026-10-28)
+
+- `content_finding.fingerprint` says which key makes it: the organization's hash key on an enrolled device, so the same secret matches across devices (PRD SCAN-15); a device-local key otherwise, and those fingerprints are not uploaded. No shape change.
+- A `config_change` for a memory file a person restored from a kept version (PRD SCAN-14, `privometry memory restore`) has `changed_by: person`; the version stays local, in `ext.x_privometry_restored_from_version`.
+
+## 1.0.0-draft.3 (2026-10-28)
+
+- Inventory items gain optional `package` (the package an MCP server runs, without its version) and `host` (an HTTP MCP server's host), so organization catalogs can recognize servers by package or host as well as by name (PRD CP-09). Never a command line or a full URL.
 ## 1.0.0-draft.2 (2026-10-23)
 
 - Content scanning (PRD SCAN-01 to SCAN-11, Contracts v1 `content_finding`):

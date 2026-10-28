@@ -666,8 +666,10 @@
             "config_hash_mismatch",
             "sensor_binary_modified",
             "sequence_gap",
+            "hooks_bypassed",
             "other"
-          ]
+          ],
+          "description": "hooks_bypassed: a running agent was started with a flag from its adapter's detect.bypass_flags, which skips its permission prompts or its hooks; detail names the flag, never the command line."
         },
         "agent_product": {
           "$ref": "../../common/v1/common.schema.json#/$defs/agent_product"
@@ -785,6 +787,16 @@
                 "stdio",
                 "http"
               ]
+            },
+            "package": {
+              "type": "string",
+              "maxLength": 256,
+              "description": "For MCP servers: the package the server runs, such as @modelcontextprotocol/server-github, without a version. Organization catalogs match on it."
+            },
+            "host": {
+              "type": "string",
+              "maxLength": 253,
+              "description": "For HTTP MCP servers: the host of the server's URL, without credentials, path or query."
             },
             "posture": {
               "type": "object",
@@ -944,7 +956,7 @@
         "fingerprint": {
           "type": "string",
           "pattern": "^hmac-sha256:[0-9a-f]{64}$",
-          "description": "Credentials only: salted hash of the secret, to spot the same secret on several devices."
+          "description": "Credentials only: HMAC-SHA256 of the secret. On an enrolled device the key is the organization's hash key, so the same secret has the same fingerprint on every device of the organization and the platform can track it across devices (PRD SCAN-15); otherwise it is a key that never leaves the device, and such fingerprints are not uploaded."
         },
         "action_taken": {
           "enum": [

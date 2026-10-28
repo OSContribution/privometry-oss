@@ -2,6 +2,7 @@ package update
 
 import (
 	"archive/tar"
+	"archive/zip"
 	"bytes"
 	"compress/gzip"
 	"context"
@@ -316,5 +317,52 @@ func TestConformanceReleaseVector(t *testing.T) {
 	}
 	if rel.Version != "0.5.0" || art.OS != ArtifactOSMacos || art.Arch != ArtifactArchArm64 {
 		t.Errorf("picked %s %s/%s", rel.Version, art.OS, art.Arch)
+	}
+}
+
+// A Windows release is a zip of .exe files; they are installed under their
+// .exe names, and binaries an earlier update could not delete (Windows keeps
+// a running binary) are cleaned up by the next one.
+func TestStageWindowsZip(t *testing.T) {
+	f := newFixture(t, "0.5.0")
+	var buf bytes.Buffer
+	zw := zip.NewWriter(&buf)
+	for _, n := range []string{"privometry.exe", "privometryd.exe", "privometry-hook.exe", "README.md"} {
+		h := &zip.FileHeader{Name: n, Method: zip.Deflate}
+		h.SetMode(0o755)
+		w, _ := zw.CreateHeader(h)
+		w.Write(script("0.5.0"))
+	}
+	zw.Close()
+	f.archive = buf.Bytes()
+	f.release.Artifacts[0].Format = ArtifactFormatZip
+	f.sign("release", "test")
+
+	dir := t.TempDir()
+	for _, n := range []string{"privometry.exe", "privometryd.exe", "privometry-hook.exe"} {
+		os.WriteFile(filepath.Join(dir, n), script("0.4.2"), 0o755)
+	}
+	leftover := filepath.Join(dir, "privometryd.exe.privometry-old-abc")
+	os.WriteFile(leftover, script("0.4.1"), 0o755)
+
+	opts := f.opts("0.4.2")
+	opts.GOOS = "windows"
+	staged, err := Stage(context.Background(), opts, &f.release.Artifacts[0], dir, "0.5.0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(leftover); !errors.Is(err, os.ErrNotExist) {
+		t.Error("the leftover from an earlier update was not removed")
+	}
+	if err := staged.Install(); err != nil {
+		t.Fatal(err)
+	}
+	for _, n := range []string{"privometry.exe", "privometryd.exe", "privometry-hook.exe"} {
+		if got, _ := os.ReadFile(filepath.Join(dir, n)); !bytes.Equal(got, script("0.5.0")) {
+			t.Errorf("%s not replaced", n)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(dir, "privometry")); !errors.Is(err, os.ErrNotExist) {
+		t.Error("a binary without .exe was written on Windows")
 	}
 }

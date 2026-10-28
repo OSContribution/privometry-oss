@@ -194,6 +194,11 @@ func (d *Daemon) recordConfigChange(w watched, before, after string) error {
 // recordConfigChangeBy records a config_change event, with who made the
 // change when it is known (memory files).
 func (d *Daemon) recordConfigChangeBy(w watched, before, after string, by events.ConfigChangedBy) error {
+	return d.appendEvent(d.configChangeEvent(w, before, after, by), w.path)
+}
+
+// configChangeEvent builds the config_change event for one file.
+func (d *Daemon) configChangeEvent(w watched, before, after string, by events.ConfigChangedBy) *events.Event {
 	change := events.ConfigChangeModified
 	switch {
 	case before == "":
@@ -213,7 +218,7 @@ func (d *Daemon) recordConfigChangeBy(w watched, before, after string, by events
 		OccurredAt: contract.At(d.cfg.Now()), Device: d.device, User: events.User{LocalUser: localUser()},
 		Agent:  &events.Agent{Product: w.agent.Agent, SessionID: d.watcherSession(w.agent.Agent), NativeSessionID: "privometry-file-watcher"},
 		Config: cfg, Redaction: map[string]contract.PrivacyLevel{"config.path": contract.PrivacyLevelRedacted, "user.local_user": contract.PrivacyLevelClear}}
-	return d.appendEvent(ev, w.path)
+	return ev
 }
 
 func (d *Daemon) recordIntegrity(w watched, check, before, after string) error {
