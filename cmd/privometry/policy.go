@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/platform"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/policy"
@@ -78,7 +79,11 @@ func policyTest(args []string, stdout, stderr io.Writer) int {
 }
 
 func runPolicyTests(paths []string, layer, testsDir string, stdout, stderr io.Writer) int {
-	packs, err := policy.BuiltinPacks()
+	env, err := platform.CurrentEnv()
+	if err != nil {
+		return fail(stderr, err)
+	}
+	packs, err := availablePacks(env, stderr)
 	if err != nil {
 		return fail(stderr, err)
 	}
@@ -112,6 +117,10 @@ func runPolicyTests(paths []string, layer, testsDir string, stdout, stderr io.Wr
 				dir = filepath.Join(filepath.Dir(p), "tests")
 			}
 			r = packtest.Policy(src, packs, dir)
+			r.Problems = append(r.Problems, allowlistProblems(src)...)
+			if n := len(src.Policy.Allowlist); n > 0 {
+				r.Notes = append(r.Notes, fmt.Sprintf("%d content allowlist entries", n))
+			}
 		}
 		status := "PASS"
 		if !r.OK() {
@@ -134,6 +143,35 @@ func runPolicyTests(paths []string, layer, testsDir string, stdout, stderr io.Wr
 	return 0
 }
 
+// allowlistProblems names allowlist entries that cover no detector in the
+// packs in use, usually a misspelled detector or pack ID.
+func allowlistProblems(src merge.Source) []string {
+	env, err := platform.CurrentEnv()
+	if err != nil {
+		return []string{err.Error()}
+	}
+	detectors, err := loadDetectors(env)
+	if err != nil {
+		return []string{err.Error()}
+	}
+	known := map[string]bool{}
+	for _, p := range detectors {
+		known[p.Manifest.ID+":*"] = true
+		for _, d := range p.Detectors {
+			known[d.QID] = true
+		}
+	}
+	var out []string
+	for i, e := range src.Policy.Allowlist {
+		for _, id := range e.Detectors {
+			if !known[id] {
+				out = append(out, fmt.Sprintf("allowlist entry %d: no detector %s in the detector packs in use", i+1, id))
+			}
+		}
+	}
+	return out
+}
+
 // explain decides one action with the shipped packs, the local policies and
 // any extra policy files, and prints every request and the decision.
 func explain(a intent.Action, extra []string, layer string, untrusted bool, agent string, stdout, stderr io.Writer) int {
@@ -143,11 +181,11 @@ func explain(a intent.Action, extra []string, layer string, untrusted bool, agen
 	}
 	cwd, _ := os.Getwd()
 	repoRoot := platform.GitRoot(cwd)
-	packs, err := policy.BuiltinPacks()
+	packs, err := availablePacks(env, stderr)
 	if err != nil {
 		return fail(stderr, err)
 	}
-	sources, errs := policy.LocalSources(env.Home, repoRoot)
+	sources, errs := policy.Sources(env, repoRoot, time.Now())
 	for _, p := range extra {
 		src, err := policy.LoadFile(p, layer)
 		if err != nil {

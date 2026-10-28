@@ -12,8 +12,13 @@ import (
 
 // lock takes an exclusive lock on <dir>/privometryd.lock, so only one daemon runs
 // per data directory even if its socket file was deleted.
-func lock(dir string) (func(), error) {
-	path := filepath.Join(dir, "privometryd.lock")
+func lock(dir string) (func(), error) { return Lock(dir, "privometryd.lock") }
+
+// Lock takes an exclusive lock on <dir>/<name> and writes this process's PID
+// into it; privometryd -supervise holds one too. It fails while another
+// process holds the lock, naming that process.
+func Lock(dir, name string) (func(), error) {
+	path := filepath.Join(dir, name)
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o600)
 	if err != nil {
 		return nil, err

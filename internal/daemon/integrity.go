@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -29,8 +30,10 @@ type watched struct {
 }
 
 // watchList returns each agent's hook file, user and managed config files,
-// and user MCP sources. Project files are left out: the daemon does not know
-// every repo, and the scanner covers them.
+// and user MCP sources, and the project settings files that can turn an
+// agent's hooks off in the workspaces agents worked in recently. Other
+// project files are left out: the daemon does not know every repo, and the
+// scanner covers them.
 func (d *Daemon) watchList() []watched {
 	var out []watched
 	seen := map[string]bool{}
@@ -64,6 +67,15 @@ func (d *Daemon) watchList() []watched {
 				}
 				for _, p := range matches {
 					add(watched{agent: a, path: p, tier: t.Tier, format: string(t.Format), holds: holdsOf(t.Holds)})
+				}
+			}
+		}
+		if len(a.Hooks.DisableSettings) > 0 {
+			for _, root := range d.recentRoots() {
+				for _, f := range guard.SettingsFiles(a, guard.Options{Env: d.cfg.Env}, root) {
+					if f.Tier == string(contract.ConfigTierProject) {
+						add(watched{agent: a, path: f.Path, tier: contract.ConfigTierProject, format: f.Format, holds: []events.ConfigHold{events.ConfigHoldSettings}})
+					}
 				}
 			}
 		}
@@ -131,8 +143,11 @@ func digest(b []byte) string {
 
 // CheckIntegrity compares every watched file with its last state and records
 // config_change events for changed files, and integrity events when Privometry's
-// hook disappears or changes. It returns how many events it recorded. The
-// first observation of a file records nothing.
+// hook disappears or changes. The first observation of a file records no
+// config_change. A file that starts turning the agent's hooks off while
+// Privometry's hook is installed records hooks_disabled, also when it is first
+// seen (a project settings file from a new workspace). It returns how many
+// events it recorded.
 func (d *Daemon) CheckIntegrity() (int, error) {
 	prev, err := d.store.ConfigHashes()
 	if err != nil {
@@ -149,9 +164,20 @@ func (d *Daemon) CheckIntegrity() (int, error) {
 			status = guard.Check(w.agent, guard.Options{Env: d.cfg.Env})
 			h.PrivometryHook = status.State != "missing" && status.State != "unsupported"
 		}
+		setting := guard.DisablesIn(w.agent, w.path, w.format)
+		if setting == "" && w.install && status.State == "disabled" && status.DisabledBy == "" {
+			setting = `"enabled": false on Privometry's own hook entry`
+		}
+		h.HooksOff = setting != ""
 		old, known := prev[w.path]
 		if err := d.store.SetConfigHash(h, now); err != nil {
 			return n, err
+		}
+		if h.HooksOff && !old.HooksOff && d.hookedNatively(w.agent.Agent) {
+			if err := d.recordHooksDisabled(w, setting, h.SHA256); err != nil {
+				return n, err
+			}
+			n++
 		}
 		if !known || old.SHA256 == h.SHA256 {
 			continue
@@ -165,7 +191,7 @@ func (d *Daemon) CheckIntegrity() (int, error) {
 			switch {
 			case !h.PrivometryHook:
 				check = "hook_removed"
-			case status.State == "partial":
+			case status.State == "partial", status.State == "disabled" && len(status.Missing) > 0:
 				check = "hook_modified"
 			}
 			if check != "" {
@@ -194,6 +220,11 @@ func (d *Daemon) recordConfigChange(w watched, before, after string) error {
 // recordConfigChangeBy records a config_change event, with who made the
 // change when it is known (memory files).
 func (d *Daemon) recordConfigChangeBy(w watched, before, after string, by events.ConfigChangedBy) error {
+	return d.appendEvent(d.configChangeEvent(w, before, after, by), w.path)
+}
+
+// configChangeEvent builds the config_change event for one file.
+func (d *Daemon) configChangeEvent(w watched, before, after string, by events.ConfigChangedBy) *events.Event {
 	change := events.ConfigChangeModified
 	switch {
 	case before == "":
@@ -213,7 +244,7 @@ func (d *Daemon) recordConfigChangeBy(w watched, before, after string, by events
 		OccurredAt: contract.At(d.cfg.Now()), Device: d.device, User: events.User{LocalUser: localUser()},
 		Agent:  &events.Agent{Product: w.agent.Agent, SessionID: d.watcherSession(w.agent.Agent), NativeSessionID: "privometry-file-watcher"},
 		Config: cfg, Redaction: map[string]contract.PrivacyLevel{"config.path": contract.PrivacyLevelRedacted, "user.local_user": contract.PrivacyLevelClear}}
-	return d.appendEvent(ev, w.path)
+	return ev
 }
 
 func (d *Daemon) recordIntegrity(w watched, check, before, after string) error {
@@ -233,5 +264,21 @@ func (d *Daemon) recordIntegrity(w watched, check, before, after string) error {
 		OccurredAt: contract.At(d.cfg.Now()), Device: d.device, User: events.User{LocalUser: localUser()}, Integrity: in,
 		Redaction: map[string]contract.PrivacyLevel{"integrity.path": contract.PrivacyLevelRedacted, "user.local_user": contract.PrivacyLevelClear}}
 	d.cfg.Logger.Warn("integrity alert", "agent", w.agent.Agent, "check", check, "path", w.path)
+	return d.appendEvent(ev, w.path)
+}
+
+// recordHooksDisabled records that a watched file turns the agent's hooks off,
+// Privometry's included.
+func (d *Daemon) recordHooksDisabled(w watched, setting, sha string) error {
+	in := &events.Integrity{Check: events.IntegrityCheckHooksDisabled, Reason: events.IntegrityReasonSetting, AgentProduct: w.agent.Agent, Tier: w.tier,
+		Path:   redact.Redact(w.path, redact.Context{Home: d.cfg.Env.Home}),
+		Detail: fmt.Sprintf("%s in this file turns off %s's hooks, so Privometry neither sees nor decides what it does.", setting, w.agent.DisplayName)}
+	if sha != "" {
+		in.ObservedSHA256 = sha
+	}
+	ev := &events.Event{Schema: events.EventSchema, EventID: contract.NewID("evt"), Type: events.EventTypeIntegrity,
+		OccurredAt: contract.At(d.cfg.Now()), Device: d.device, User: events.User{LocalUser: localUser()}, Integrity: in,
+		Redaction: map[string]contract.PrivacyLevel{"integrity.path": contract.PrivacyLevelRedacted, "user.local_user": contract.PrivacyLevelClear}}
+	d.cfg.Logger.Warn("agent hooks turned off", "agent", w.agent.Agent, "path", w.path)
 	return d.appendEvent(ev, w.path)
 }

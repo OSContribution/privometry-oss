@@ -32,8 +32,9 @@ type Bundle struct {
 	ExpiresAt contract.Time  `json:"expires_at"`
 	Defaults  BundleDefaults `json:"defaults"`
 
-	// Compiled enforce set, validated against privometry.cedarschema before
-	// signing.
+	// The organization layer's own rules compiled to Cedar and validated against
+	// privometry.cedarschema before signing. Devices compile the merged policy
+	// themselves from sources.
 	CedarPolicies string `json:"cedar_policies"`
 
 	// Compiled monitor set; its result is recorded as would_verdict.
@@ -51,7 +52,8 @@ type Bundle struct {
 	// release key.
 	TrustedPublishers []BundleTrustedPublisher `json:"trusted_publishers,omitempty"`
 
-	// The YAML each layer came from, for display and audit.
+	// The organization layer's policy files (layer org). Each device merges them
+	// with its built-in packs and local policies.
 	Sources []BundleSource `json:"sources,omitempty"`
 
 	// Experimental or vendor fields, keyed x_<namespace>_<name>.
@@ -61,6 +63,12 @@ type Bundle struct {
 	// and paths redacted, local usernames and repo paths hashed in the cloud;
 	// clear locally.
 	Privacy *BundlePrivacy `json:"privacy,omitempty"`
+
+	// Remote approvals (PRD CP-21; docs/spikes/remote-approvals.md). When enabled,
+	// asks that should go remote are denied at once with a message, an approval is
+	// requested in Slack or Teams, and the next attempt of the same action in the
+	// same session is allowed once if it is approved.
+	Approvals *BundleApprovals `json:"approvals,omitempty"`
 }
 
 // BundleDefaults is generated from policy/v1/bundle.schema.json#/properties/defaults.
@@ -264,4 +272,31 @@ type BundlePrivacyLocalCapture string
 const (
 	BundlePrivacyLocalCaptureClear    BundlePrivacyLocalCapture = "clear"
 	BundlePrivacyLocalCaptureRedacted BundlePrivacyLocalCapture = "redacted"
+)
+
+// BundleApprovals is generated from policy/v1/bundle.schema.json#/properties/approvals.
+//
+// Remote approvals (PRD CP-21; docs/spikes/remote-approvals.md). When enabled,
+// asks that should go remote are denied at once with a message, an approval is
+// requested in Slack or Teams, and the next attempt of the same action in the
+// same session is allowed once if it is approved.
+type BundleApprovals struct {
+	Enabled bool `json:"enabled"`
+
+	// unattended: asks from non-interactive sessions and from agents that cannot
+	// ask. all: every ask.
+	Route          BundleApprovalsRoute `json:"route"`
+	TimeoutSeconds int64                `json:"timeout_seconds"`
+}
+
+// BundleApprovalsRoute is generated from policy/v1/bundle.schema.json#/properties/approvals/properties/route.
+//
+// unattended: asks from non-interactive sessions and from agents that cannot
+// ask. all: every ask.
+type BundleApprovalsRoute string
+
+// Values of BundleApprovalsRoute.
+const (
+	BundleApprovalsRouteUnattended BundleApprovalsRoute = "unattended"
+	BundleApprovalsRouteAll        BundleApprovalsRoute = "all"
 )

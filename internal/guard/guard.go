@@ -14,7 +14,6 @@ import (
 
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/adapters/registry"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/platform"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/scanner/parsers"
 )
 
 // Options say where the hook lives and what is installed.
@@ -23,6 +22,12 @@ type Options struct {
 	HookCommand  string // absolute path of privometry-hook
 	AgentVersion string // detected agent version; "" if unknown
 	Root         string // prefixes paths, for tests
+	// File, when set, is the hooks file to edit instead of the agent's
+	// user-level one: scripts/hook-recorder writes a throwaway project's.
+	File string
+	// Project, when set, is a project folder whose project-level settings
+	// can also turn the agent's hooks off (Check).
+	Project string
 }
 
 // Change is a computed edit to one agent's config file.
@@ -51,6 +56,9 @@ func (c *Change) Changed() bool { return !bytes.Equal(c.Before, c.After) }
 func (c *Change) Apply() error {
 	if !c.Changed() {
 		return nil
+	}
+	if c.After == nil {
+		return os.Remove(c.real)
 	}
 	mode := fs.FileMode(0o600)
 	if c.Before != nil {
@@ -92,6 +100,9 @@ func (c *Change) Apply() error {
 var ErrUnsupported = errors.New("guard: installing hooks for this agent is not supported yet")
 
 func settingsPath(a registry.Adapter, opts Options) (string, string, error) {
+	if opts.File != "" {
+		return opts.File, filepath.Join(opts.Root, opts.File), nil
+	}
 	paths, err := a.Paths(a.Hooks.Install.Free.Paths, opts.Env, "")
 	if err != nil {
 		return "", "", err
@@ -131,10 +142,12 @@ type layout interface {
 
 func layoutFor(a registry.Adapter) (layout, error) {
 	switch a.Hooks.Registration {
-	case registry.HooksRegistrationClaudeSettings, registry.HooksRegistrationCodexHooks:
+	case registry.HooksRegistrationClaudeSettings, registry.HooksRegistrationCodexHooks, registry.HooksRegistrationGeminiSettings:
 		return groupedLayout{}, nil
-	case registry.HooksRegistrationCursorHooks:
+	case registry.HooksRegistrationCursorHooks, registry.HooksRegistrationCopilotHooks:
 		return flatLayout{}, nil
+	case registry.HooksRegistrationAntigravityHooks:
+		return namedLayout{}, nil
 	}
 	return nil, fmt.Errorf("%w (%s)", ErrUnsupported, a.Agent)
 }
@@ -160,13 +173,20 @@ func Install(a registry.Adapter, opts Options) (*Change, error) {
 	fc := a.Hooks.FailClosedOption
 	failClosed := fc != nil && (fc.MinVersion == "" || opts.AgentVersion != "" && atLeast(opts.AgentVersion, fc.MinVersion))
 	for _, ev := range a.Hooks.Events {
-		entry := newObject()
-		if a.Hooks.Registration != registry.HooksRegistrationCursorHooks {
-			entry.set("type", "command")
+		entry := hookEntry(a, opts, commandPath(opts)+" "+string(a.Agent)+" "+ev.Name)
+		timeout := a.Hooks.TimeoutSeconds
+		if ev.TimeoutSeconds != nil {
+			timeout = ev.TimeoutSeconds
 		}
-		entry.set("command", shellQuote(opts.HookCommand)+" "+string(a.Agent)+" "+ev.Name)
-		if a.Hooks.TimeoutSeconds != nil {
-			entry.set("timeout", *a.Hooks.TimeoutSeconds)
+		if timeout != nil {
+			switch a.Hooks.Registration {
+			case registry.HooksRegistrationGeminiSettings:
+				entry.set("timeout", *timeout*1000) // milliseconds
+			case registry.HooksRegistrationCopilotHooks:
+				entry.set("timeoutSec", *timeout)
+			default:
+				entry.set("timeout", *timeout)
+			}
 		}
 		if failClosed && decisionRole(ev.Role) {
 			entry.set(fc.Key, fc.Value)
@@ -181,6 +201,43 @@ func Install(a registry.Adapter, opts Options) (*Change, error) {
 	c.Warnings = warnings(a, opts)
 	c.After = encode(doc)
 	return c, nil
+}
+
+// hookEntry is one registration of the hook command in the agent's format.
+func hookEntry(a registry.Adapter, opts Options, cmd string) *object {
+	entry := newObject()
+	switch a.Hooks.Registration {
+	case registry.HooksRegistrationCursorHooks:
+		entry.set("command", cmd)
+	case registry.HooksRegistrationCopilotHooks:
+		// Copilot runs "bash" on macOS and Linux and "powershell" on Windows,
+		// where a quoted program path needs the call operator.
+		entry.set("type", "command")
+		if opts.Env.GOOS == "windows" {
+			entry.set("powershell", "& "+cmd)
+		} else {
+			entry.set("bash", cmd)
+		}
+	case registry.HooksRegistrationGeminiSettings:
+		entry.set("name", "privometry")
+		entry.set("type", "command")
+		entry.set("command", cmd)
+	default:
+		entry.set("type", "command")
+		entry.set("command", cmd)
+	}
+	return entry
+}
+
+// entryCommand is the command an entry runs, from whichever key the agent
+// uses for it.
+func entryCommand(entry *object) string {
+	for _, key := range []string{"command", "bash", "powershell"} {
+		if cmd, _ := entry.get(key).(string); cmd != "" {
+			return strings.TrimPrefix(cmd, "& ")
+		}
+	}
+	return ""
 }
 
 // Uninstall computes the edit that removes every Privometry hook entry.
@@ -203,22 +260,30 @@ func Uninstall(a registry.Adapter, opts Options) (*Change, error) {
 	}
 	lay.cleanup(doc)
 	c.After = encode(doc)
+	if a.Hooks.Registration == registry.HooksRegistrationCopilotHooks && len(doc.keys) == 0 {
+		c.After = nil // Privometry's own hooks file: remove it rather than leave {}
+	}
 	return c, nil
 }
 
 // Status is whether Privometry's hook is in place for one agent.
 type Status struct {
-	Agent         string   `json:"agent"`
-	Path          string   `json:"path"`
-	State         string   `json:"state"` // installed, partial, stale, missing, unsupported
-	Missing       []string `json:"missing,omitempty"`
-	FailClosed    bool     `json:"fail_closed"`
-	TrustRequired bool     `json:"trust_required,omitempty"`
-	Detail        string   `json:"detail,omitempty"`
+	Agent   string   `json:"agent"`
+	Path    string   `json:"path"`
+	State   string   `json:"state"` // installed, partial, stale, disabled, missing, unsupported
+	Missing []string `json:"missing,omitempty"`
+	// DisabledBy is the config file that turns the agent's hooks off, when
+	// State is disabled because of a setting.
+	DisabledBy    string `json:"disabled_by,omitempty"`
+	FailClosed    bool   `json:"fail_closed"`
+	TrustRequired bool   `json:"trust_required,omitempty"`
+	Detail        string `json:"detail,omitempty"`
 }
 
 // Check reports the hook's state: installed when every event is registered
-// with this privometry-hook, stale when entries point at another binary.
+// with this privometry-hook, stale when entries point at another binary, and
+// disabled when entries are there but a setting turns the agent's hooks off
+// or Privometry's own entry is turned off.
 func Check(a registry.Adapter, opts Options) Status {
 	s := Status{Agent: string(a.Agent)}
 	lay, err := layoutFor(a)
@@ -245,8 +310,8 @@ func Check(a registry.Adapter, opts Options) Status {
 			continue
 		}
 		found++
-		cmd, _ := entry.get("command").(string)
-		if opts.HookCommand != "" && !strings.HasPrefix(cmd, shellQuote(opts.HookCommand)+" ") {
+		cmd := entryCommand(entry)
+		if opts.HookCommand != "" && !strings.HasPrefix(cmd, commandPath(opts)+" ") {
 			stale = true
 		}
 		if fc := a.Hooks.FailClosedOption; fc != nil && decisionRole(ev.Role) && entry.get(fc.Key) != nil {
@@ -262,6 +327,14 @@ func Check(a registry.Adapter, opts Options) Status {
 		s.State = "partial"
 	default:
 		s.State = "installed"
+	}
+	if found > 0 {
+		if ownEntryOff(a, doc) {
+			s.State, s.Detail = "disabled", fmt.Sprintf(`Privometry's hook is turned off ("enabled": false) in %s; run privometry guard install`, path)
+		} else if dis := Disabled(a, opts, opts.Project); dis != nil {
+			s.State, s.DisabledBy = "disabled", dis.Path
+			s.Detail = fmt.Sprintf("%s in %s turns off all of %s's hooks, Privometry's included; remove it", dis.Setting, dis.Path, a.DisplayName)
+		}
 	}
 	if t := a.Hooks.Trust; t != nil && t.Required && found > 0 {
 		s.TrustRequired = true
@@ -295,7 +368,7 @@ func Installed(a registry.Adapter, opts Options) bool {
 	return false
 }
 
-// groupedLayout is Claude Code's and Codex's shape:
+// groupedLayout is Claude Code's, Codex's and Gemini CLI's shape:
 // {"hooks": {"<Event>": [{"matcher": "...", "hooks": [{"type": "command", ...}]}]}}.
 type groupedLayout struct{}
 
@@ -336,7 +409,7 @@ func (groupedLayout) find(doc *object, event string) *object {
 		entries, _ := group.get("hooks").([]any)
 		for _, e := range entries {
 			if entry, _ := e.(*object); entry != nil {
-				if cmd, _ := entry.get("command").(string); isPrivometry(cmd) {
+				if isPrivometry(entryCommand(entry)) {
 					return entry
 				}
 			}
@@ -351,8 +424,9 @@ func (groupedLayout) cleanup(doc *object) {
 	}
 }
 
-// flatLayout is Cursor's shape:
-// {"version": 1, "hooks": {"<event>": [{"command": "...", "matcher": "..."}]}}.
+// flatLayout is Cursor's and Copilot CLI's shape:
+// {"version": 1, "hooks": {"<event>": [{"command": "...", "matcher": "..."}]}}
+// (Copilot names the command "bash" or "powershell").
 type flatLayout struct{}
 
 func (flatLayout) remove(doc *object) int {
@@ -369,7 +443,7 @@ func (flatLayout) remove(doc *object) int {
 		var keep []any
 		for _, e := range entries {
 			if entry, _ := e.(*object); entry != nil {
-				if cmd, _ := entry.get("command").(string); isPrivometry(cmd) {
+				if isPrivometry(entryCommand(entry)) {
 					removed++
 					continue
 				}
@@ -410,7 +484,7 @@ func (flatLayout) find(doc *object, event string) *object {
 	entries, _ := hooks.get(event).([]any)
 	for _, e := range entries {
 		if entry, _ := e.(*object); entry != nil {
-			if cmd, _ := entry.get("command").(string); isPrivometry(cmd) {
+			if isPrivometry(entryCommand(entry)) {
 				return entry
 			}
 		}
@@ -427,32 +501,75 @@ func (flatLayout) cleanup(doc *object) {
 	}
 }
 
-// warnings explains settings that would stop the hook from running.
-func warnings(a registry.Adapter, opts Options) []string {
-	if a.Agent != "codex_cli" {
+// namedLayout is Antigravity's shape: each top-level key names a hook and holds
+// its events; Privometry's hook is named privometry, and other hooks are left
+// alone. PreToolUse and PostToolUse take matcher groups, other events a list.
+// {"privometry": {"PreToolUse": [{"matcher": "*", "hooks": [{...}]}], "SessionStart": [{...}]}}.
+type namedLayout struct{}
+
+const hookName = "privometry"
+
+func namedGrouped(event string) bool { return event == "PreToolUse" || event == "PostToolUse" }
+
+func (namedLayout) remove(doc *object) int {
+	ours, _ := doc.get(hookName).(*object)
+	if ours == nil {
+		return 0
+	}
+	doc.del(hookName)
+	return max(1, len(ours.keys))
+}
+
+func (namedLayout) add(doc *object, ev registry.HookEvent, entry *object) {
+	ours, _ := doc.get(hookName).(*object)
+	if ours == nil {
+		ours = newObject()
+		doc.set(hookName, ours)
+	}
+	list, _ := ours.get(ev.Name).([]any)
+	if !namedGrouped(ev.Name) {
+		ours.set(ev.Name, append(list, entry))
+		return
+	}
+	group := newObject()
+	if ev.Matcher != "" {
+		group.set("matcher", ev.Matcher)
+	}
+	group.set("hooks", []any{entry})
+	ours.set(ev.Name, append(list, group))
+}
+
+func (namedLayout) find(doc *object, event string) *object {
+	ours, _ := doc.get(hookName).(*object)
+	if ours == nil {
 		return nil
 	}
-	for _, tier := range a.ConfigTiers {
-		if tier.Tier != "user" || tier.Format != registry.FileFormatToml {
+	items, _ := ours.get(event).([]any)
+	for _, it := range items {
+		o, _ := it.(*object)
+		if o == nil {
 			continue
 		}
-		paths, _ := a.Paths(tier.Paths, opts.Env, "")
-		for _, p := range paths {
-			raw, err := os.ReadFile(filepath.Join(opts.Root, p))
-			if err != nil {
-				continue
-			}
-			doc, err := parsers.Parse("toml", raw)
-			if err != nil {
-				continue
-			}
-			for _, key := range []string{"/features/hooks", "/features/codex_hooks"} {
-				if v, ok := parsers.Lookup(doc, key).(bool); ok && !v {
-					return []string{fmt.Sprintf("hooks are turned off in %s ([features] %s = false); Codex will not run Privometry until you remove that line",
-						p, strings.TrimPrefix(key, "/features/"))}
-				}
+		entries := []any{o}
+		if namedGrouped(event) {
+			entries, _ = o.get("hooks").([]any)
+		}
+		for _, e := range entries {
+			if entry, _ := e.(*object); entry != nil && isPrivometry(entryCommand(entry)) {
+				return entry
 			}
 		}
+	}
+	return nil
+}
+
+func (namedLayout) cleanup(*object) {}
+
+// warnings explains settings that would stop the hook from running.
+func warnings(a registry.Adapter, opts Options) []string {
+	if dis := Disabled(a, opts, ""); dis != nil {
+		return []string{fmt.Sprintf("hooks are turned off in %s (%s); %s will not run Privometry until you remove that setting",
+			dis.Path, dis.Setting, a.DisplayName)}
 	}
 	return nil
 }
@@ -474,7 +591,7 @@ func isPrivometry(cmd string) bool {
 			first = cmd[1 : end+1]
 		}
 	}
-	base := filepath.Base(first)
+	base := first[strings.LastIndexAny(first, `/\`)+1:] // either separator, whatever OS wrote it
 	return base == "privometry-hook" || base == "privometry-hook.exe"
 }
 
@@ -497,8 +614,7 @@ func removePrivometry(hooks *object) int {
 			entries, _ := group.get("hooks").([]any)
 			var keep []any
 			for _, e := range entries {
-				entry, ok := e.(*object)
-				if cmd, _ := entry.get("command").(string); ok && isPrivometry(cmd) {
+				if entry, ok := e.(*object); ok && isPrivometry(entryCommand(entry)) {
 					removed++
 					continue
 				}
@@ -521,7 +637,17 @@ func removePrivometry(hooks *object) int {
 	return removed
 }
 
-// shellQuote quotes a path for a hook command when it needs it.
+// commandPath is the hook path as it starts a hook command. On Windows it
+// is always in double quotes: agents run hooks through cmd.exe or Git Bash,
+// both take a double-quoted path, and Bash would eat unquoted backslashes.
+func commandPath(opts Options) string {
+	if opts.Env.GOOS == "windows" {
+		return `"` + opts.HookCommand + `"`
+	}
+	return shellQuote(opts.HookCommand)
+}
+
+// shellQuote quotes a path for a POSIX shell when it needs it.
 func shellQuote(s string) string {
 	if s != "" && !strings.ContainsAny(s, " \t'\"$`\\;&|<>()*?[]{}!#~") {
 		return s

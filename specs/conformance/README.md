@@ -18,6 +18,14 @@ Facts left out take their empty value (`""`, `[]`, risk `none`, `false`), matchi
 
 Verdict mapping (Contracts v1): a satisfied `forbid` gives `deny`; otherwise an allow decision gives `ask` if any satisfied `permit` is annotated `@verdict("ask")`, else `allow`; when nothing is satisfied, `unmatched` decides. `rule_ids` are the `@id`s of the satisfied policies with the winning verdict.
 
+## policy-compile
+
+For each `policy/v1/examples/valid/<name>.yaml`, the Cedar the Go compiler makes when the file is loaded as the organization layer: `<name>.cedar` (enforce set) and `<name>.monitor.cedar` (monitor set; empty when every rule enforces). The platform's Java compiler (`privometry-platform/libs/policy`) must produce the same bytes, so the policy service and the edge never disagree about what a policy says. `go test ./internal/policy/compiler` fails if the files are stale.
+
+## riskfeed
+
+`manifest-hashes.json` (`privometry.manifesthashtest/v1`): MCP tool lists and the `tool_manifest_hash` each must give (riskfeed/v1 CHANGELOG draft.2), covering key order, extra fields, HTML characters, Unicode and control characters.
+
 ## signatures
 
 `vectors.json` (`privometry.signaturetest/v1`): 23 cases, each an envelope, the key set to trust, the expected role and payload type, a verification time and `valid` or `invalid`.

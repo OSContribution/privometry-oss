@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/BurntSushi/toml"
@@ -136,11 +137,19 @@ func Lookup(doc any, pointer string) any {
 	cur := doc
 	for _, part := range strings.Split(strings.TrimPrefix(pointer, "/"), "/") {
 		part = strings.NewReplacer("~1", "/", "~0", "~").Replace(part)
-		m, ok := cur.(map[string]any)
-		if !ok {
-			return nil
-		}
-		if cur, ok = m[part]; !ok {
+		switch v := cur.(type) {
+		case map[string]any:
+			var ok bool
+			if cur, ok = v[part]; !ok {
+				return nil
+			}
+		case []any: // an array index, such as /workspacePaths/0
+			i, err := strconv.Atoi(part)
+			if err != nil || i < 0 || i >= len(v) || strconv.Itoa(i) != part {
+				return nil
+			}
+			cur = v[i]
+		default:
 			return nil
 		}
 	}

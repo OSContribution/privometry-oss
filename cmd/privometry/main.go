@@ -1,5 +1,5 @@
-// Command privometry is the Privometry CLI: scan, guard, daemon, timeline, policy and
-// doctor; login arrives with the cloud milestones.
+// Command privometry is the Privometry CLI: scan, guard, daemon, timeline, policy,
+// doctor, and signing up with an organization (login, console).
 package main
 
 import (
@@ -10,11 +10,10 @@ import (
 	"os"
 	"path/filepath"
 
-	adapterdefs "gitlab.com/cn-solutions/privometry/privometry-oss/adapter-defs"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/adapters/registry"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/buildinfo"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/contract"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/platform"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/policy"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/scanner"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/scanner/discover"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/scanner/posture"
@@ -24,14 +23,24 @@ import (
 const usage = `Usage: privometry <command> [flags]
 
 Commands:
-  scan      Find coding agents, MCP servers, hooks and risky settings
-  guard     Install, remove or check Privometry's hook in each coding agent
-  daemon    Run privometryd in the background at login, or check on it
-  timeline  Show what agents did and what Privometry decided
-  policy    Test rule packs and policies, or explain a decision
-  doctor    Check that Privometry is protecting this machine
-  update    Install the latest signed release
-  version   Print the version
+  scan         Find coding agents, MCP servers, hooks and risky settings
+  guard        Install, remove or check Privometry's hook in each coding agent
+  daemon       Run privometryd in the background at login, or check on it
+  timeline     Show what agents did and what Privometry decided
+  policy       Test rule packs and policies, or explain a decision
+  doctor       Check that Privometry is protecting this machine
+  update       Install the latest signed release
+  definitions  Show or update the signed adapter definitions and detector packs
+  memory       Show the kept versions of agents' memory files, or restore one
+  packs        Install, list or remove community rule and detector packs; sign your own
+  trust        Trust a publisher's key to sign community packs
+  mcp          Run local MCP servers through Privometry's shim
+  login        Sign this machine up with your organization and enroll it
+  console      Open the Privometry console in your browser, signed in
+  enroll       Enroll this device with a token from an admin or your MDM
+  device       Show this device's enrollment, or renew its certificate
+  bundle       Show or fetch the organization's signed policy bundle
+  version      Print the version
 
 Run "privometry scan -h" for scan flags.
 `
@@ -61,6 +70,26 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return doctorCmd(args[1:], stdout, stderr)
 	case "update":
 		return updateCmd(args[1:], stdout, stderr)
+	case "definitions":
+		return definitionsCmd(args[1:], stdout, stderr)
+	case "packs":
+		return packsCmd(args[1:], stdout, stderr)
+	case "memory":
+		return memoryCmd(args[1:], stdout, stderr)
+	case "trust":
+		return trustCmd(args[1:], stdout, stderr)
+	case "mcp":
+		return mcpCmd(args[1:], stdout, stderr)
+	case "login":
+		return loginCmd(args[1:], stdout, stderr)
+	case "console":
+		return consoleCmd(args[1:], stdout, stderr)
+	case "enroll":
+		return enrollCmd(args[1:], stdout, stderr)
+	case "device":
+		return deviceCmd(args[1:], stdout, stderr)
+	case "bundle":
+		return bundleCmd(args[1:], stdout, stderr)
 	case "version", "--version":
 		fmt.Fprintln(stdout, buildinfo.String("privometry"))
 		return 0
@@ -81,6 +110,7 @@ func scan(args []string, stdout, stderr io.Writer) int {
 	noMachine := fs.Bool("no-machine", false, "skip user and managed config and installed agents (for CI)")
 	failOn := fs.String("fail-on", "", "exit 1 if a finding is at least this severity: low, medium, high or critical")
 	out := fs.String("output", "", "write the report to this file instead of stdout")
+	changed := fs.String("changed", "", "file listing the repo files a merge or pull request changes (git diff --name-status output, or one path per line; - for stdin): flag changed agent files and scan every changed file")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -113,11 +143,43 @@ func scan(args []string, stdout, stderr io.Writer) int {
 		return fail(stderr, errors.New("nothing to scan: --no-machine needs a repo"))
 	}
 
-	reg, err := registry.Load(adapterdefs.FS)
+	sopts := scanner.Options{Options: opts}
+	if *changed != "" {
+		if opts.RepoRoot == "" {
+			return fail(stderr, errors.New("--changed needs a repo"))
+		}
+		var r io.Reader = os.Stdin
+		if *changed != "-" {
+			f, err := os.Open(*changed)
+			if err != nil {
+				return fail(stderr, err)
+			}
+			defer f.Close()
+			r = f
+		}
+		if sopts.Changed, err = scanner.ParseChanges(r); err != nil {
+			return fail(stderr, fmt.Errorf("--changed: %w", err))
+		}
+	}
+	reg, err := loadAdapters(env)
 	if err != nil {
 		return fail(stderr, err)
 	}
-	res, err := scanner.Scan(reg, opts)
+	if sopts.Detectors, err = loadDetectors(env); err != nil {
+		return fail(stderr, err)
+	}
+	// Allowlists from the policies that cover what is scanned: the user's
+	// for a machine scan, the repo's for a repo scan.
+	home := ""
+	if opts.Machine {
+		home = env.Home
+	}
+	sources, errs := policy.LocalSources(home, opts.RepoRoot)
+	for _, err := range errs {
+		fmt.Fprintln(stderr, "privometry scan:", err)
+	}
+	sopts.Allowlist = policy.Allowlist(sources)
+	res, err := scanner.Scan(reg, sopts)
 	if err != nil {
 		return fail(stderr, err)
 	}

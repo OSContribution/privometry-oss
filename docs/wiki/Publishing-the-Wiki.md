@@ -1,35 +1,37 @@
 # Publishing the Wiki
 
-The canonical wiki source lives in `docs/wiki/` so documentation changes can be reviewed with code. The directory follows GitLab Wiki conventions: `Home.md` is the landing page and `_Sidebar.md` defines navigation.
+The canonical wiki source lives in `docs/wiki/` so documentation changes can be reviewed with code. `Home.md` is the landing page and `_Sidebar.md` defines navigation; both GitHub and GitLab wikis use these names.
 
-## Publish to GitLab Wiki
+A wiki is a separate Git repository (`<project>.wiki.git`), so files in `docs/wiki/` do not appear in the Wiki tab until they are published. `scripts/publish-wiki.sh` copies them there. Pages link to each other as `Page.md` so links work when browsing the source; the script rewrites them to `Page`, the form wikis resolve.
 
-Enable the repository Wiki, then clone its separate Git repository:
+## One-time setup
+
+The wiki repository does not exist until the wiki has one page:
+
+1. **GitHub:** Settings → General → Features → enable **Wikis**. **GitLab:** Settings → General → Visibility, project features, permissions → enable **Wiki**.
+2. Open the Wiki tab and create the first page (any content, for example a page named `Home`). Publishing replaces it.
+
+## Publish from your machine
 
 ```sh
-git clone https://gitlab.com/cn-solutions/privometry/privometry-oss.wiki.git /tmp/privometry-oss-wiki
+scripts/publish-wiki.sh https://github.com/<owner>/<repo>.wiki.git           # preview the changes
+scripts/publish-wiki.sh https://github.com/<owner>/<repo>.wiki.git --push    # publish
 ```
 
-Synchronize Markdown files from a clean checkout:
+For GitLab use `https://gitlab.com/cn-solutions/privometry/privometry-oss.wiki.git`. The script uses your normal Git credentials, shows what changes, and pushes only with `--push`. `docs/wiki/` stays authoritative: pages edited in the web UI are overwritten, and pages missing from `docs/wiki/` are deleted.
 
-```sh
-rsync -av --delete docs/wiki/ /tmp/privometry-oss-wiki/
-git -C /tmp/privometry-oss-wiki status
-git -C /tmp/privometry-oss-wiki add .
-git -C /tmp/privometry-oss-wiki commit -m "Sync developer wiki"
-git -C /tmp/privometry-oss-wiki push
-```
+## Publish automatically on GitHub
 
-Review the `--delete` preview and destination before publishing. The repository copy remains authoritative.
+`.github/workflows/wiki.yml` runs the script after `docs/wiki/` changes on `main`, and on demand from the Actions tab (**wiki → Run workflow**). It pushes with the workflow's `GITHUB_TOKEN` and needs only `contents: write`; complete the one-time setup first.
 
 ## Editing rules
 
-- Use relative links between wiki pages.
+- Link between wiki pages as `Page-Name.md`; the publish step rewrites the links.
 - Keep page filenames stable after publication because external links may depend on them.
 - Put code behavior and flags in the same pull request as their documentation changes.
 - Avoid customer names, internal URLs, tokens, screenshots containing data, or unpublished security details.
-- Verify links and command examples before syncing.
+- Verify links and command examples before publishing.
 
-## Suggested automation
+## GitLab automation
 
-A future GitLab CI job can publish `docs/wiki/` after changes merge to `main`. Use a narrowly scoped project access token with repository write access, protect the Wiki branch, and require the same documentation review that applies to repository changes.
+A future GitLab CI job can run the same script after changes merge to `main`. Use a narrowly scoped project access token with repository write access, protect the wiki branch, and require the same documentation review that applies to repository changes.

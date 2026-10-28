@@ -65,20 +65,17 @@ func Load(fsys fs.FS) ([]*Pack, error) {
 }
 
 func loadPack(fsys fs.FS, mpath string) (*Pack, error) {
-	p := &Pack{}
+	var m Manifest
 	raw, err := fs.ReadFile(fsys, mpath)
 	if err != nil {
 		return nil, err
 	}
-	if err := specs.DecodeInto("detectorpack/v1/pack.schema.json", mpath, raw, &p.Manifest); err != nil {
+	if err := specs.DecodeInto("detectorpack/v1/pack.schema.json", mpath, raw, &m); err != nil {
 		return nil, fmt.Errorf("content: %w", err)
 	}
 	files, _ := fs.Glob(fsys, path.Join(path.Dir(mpath), "detectors", "*.yaml"))
-	if len(files) == 0 {
-		return nil, fmt.Errorf("content: %s has no detectors/*.yaml", p.Manifest.ID)
-	}
 	sort.Strings(files)
-	seen := map[string]bool{}
+	var docs []DetectorsFile
 	for _, f := range files {
 		raw, err := fs.ReadFile(fsys, f)
 		if err != nil {
@@ -88,6 +85,21 @@ func loadPack(fsys fs.FS, mpath string) (*Pack, error) {
 		if err := specs.DecodeInto("detectorpack/v1/detectors.schema.json", f, raw, &doc); err != nil {
 			return nil, fmt.Errorf("content: %w", err)
 		}
+		docs = append(docs, doc)
+	}
+	return NewPack(m, docs)
+}
+
+// NewPack compiles a validated manifest and its detector files, such as one
+// pack of a signed detector pack set. Detector IDs must be unique and their
+// categories listed in the manifest.
+func NewPack(m Manifest, docs []DetectorsFile) (*Pack, error) {
+	if len(docs) == 0 {
+		return nil, fmt.Errorf("content: %s has no detectors/*.yaml", m.ID)
+	}
+	p := &Pack{Manifest: m}
+	seen := map[string]bool{}
+	for _, doc := range docs {
 		for _, d := range doc.Detectors {
 			if seen[d.ID] {
 				return nil, fmt.Errorf("content: %s: detector %s is defined twice", p.Manifest.ID, d.ID)

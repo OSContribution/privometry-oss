@@ -65,7 +65,7 @@
     },
     "cedar_policies": {
       "type": "string",
-      "description": "Compiled enforce set, validated against privometry.cedarschema before signing."
+      "description": "The organization layer's own rules compiled to Cedar and validated against privometry.cedarschema before signing. Devices compile the merged policy themselves from sources."
     },
     "cedar_monitor_policies": {
       "type": "string",
@@ -256,7 +256,7 @@
     },
     "sources": {
       "type": "array",
-      "description": "The YAML each layer came from, for display and audit.",
+      "description": "The organization layer's policy files (layer org). Each device merges them with its built-in packs and local policies.",
       "items": {
         "type": "object",
         "required": [
@@ -317,6 +317,33 @@
         }
       },
       "additionalProperties": false
+    },
+    "approvals": {
+      "type": "object",
+      "required": [
+        "enabled",
+        "route",
+        "timeout_seconds"
+      ],
+      "additionalProperties": false,
+      "description": "Remote approvals (PRD CP-21; docs/spikes/remote-approvals.md). When enabled, asks that should go remote are denied at once with a message, an approval is requested in Slack or Teams, and the next attempt of the same action in the same session is allowed once if it is approved.",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "route": {
+          "enum": [
+            "unattended",
+            "all"
+          ],
+          "description": "unattended: asks from non-interactive sessions and from agents that cannot ask. all: every ask."
+        },
+        "timeout_seconds": {
+          "type": "integer",
+          "minimum": 10,
+          "maximum": 300
+        }
+      }
     }
   },
   "allOf": [

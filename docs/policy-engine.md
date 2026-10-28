@@ -83,8 +83,8 @@ Measured on an M-series Mac: p50 11 µs, p95 55 µs per decision; a three-comman
 
 ## Known gaps
 
-- Session state is not tracked yet: callers pass `UntrustedInputSeen` (M4, with the daemon).
+- The engine itself keeps no session state: the daemon tracks untrusted input and injected content per session and passes `UntrustedInputSeen` and `InjectionSeen` (see `docs/daemon.md`).
 - `catalog_status` is never set: it needs the bundle catalog and risk feed (P2).
 - Organization policies are merged from their YAML source; using a signed bundle's precompiled Cedar arrives with bundle sync (P2).
 - Inline interpreter code (`python -c`, `node -e`) is not analysed beyond its risk level.
-- Windows paths are not classified yet.
+- Windows paths are classified in forward-slash form and compared without regard to case (`C:\Users\dev\.ssh` is a secret store, `C:\Windows` and `Program Files` are system); `%USERPROFILE%` and `$env:USERPROFILE` count as the home folder, other `%VAR%` paths are not resolved. PowerShell commands are not parsed as shell intent.

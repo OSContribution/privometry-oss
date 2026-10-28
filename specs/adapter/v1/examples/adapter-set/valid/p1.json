@@ -1,6 +1,329 @@
 {
   "adapters": [
     {
+      "agent": "antigravity",
+      "config_tiers": [
+        {
+          "format": "json",
+          "holds": [
+            "hooks"
+          ],
+          "paths": {
+            "any": [
+              "~/.gemini/config/hooks.json"
+            ]
+          },
+          "tier": "user"
+        },
+        {
+          "format": "json",
+          "holds": [
+            "hooks"
+          ],
+          "paths": {
+            "any": [
+              ".agents/hooks.json"
+            ]
+          },
+          "requires_trust": true,
+          "tier": "project"
+        },
+        {
+          "format": "json",
+          "holds": [
+            "settings",
+            "permissions"
+          ],
+          "paths": {
+            "any": [
+              "~/.gemini/antigravity-cli/settings.json"
+            ]
+          },
+          "tier": "user"
+        },
+        {
+          "format": "markdown",
+          "holds": [
+            "skills"
+          ],
+          "paths": {
+            "any": [
+              "~/.gemini/config/skills/*/SKILL.md",
+              "~/.gemini/antigravity-cli/skills/*/SKILL.md"
+            ]
+          },
+          "tier": "user"
+        },
+        {
+          "format": "markdown",
+          "holds": [
+            "skills"
+          ],
+          "paths": {
+            "any": [
+              ".agents/skills/*/SKILL.md"
+            ]
+          },
+          "tier": "project"
+        }
+      ],
+      "detect": {
+        "app_bundles": {
+          "macos": [
+            "/Applications/Antigravity.app"
+          ]
+        },
+        "binaries": [
+          "agy"
+        ],
+        "bypass_flags": [
+          "--dangerously-skip-permissions"
+        ],
+        "processes": [
+          "agy",
+          "Antigravity"
+        ],
+        "version_cmd": [
+          "agy",
+          "--version"
+        ]
+      },
+      "display_name": "Antigravity",
+      "hooks": {
+        "events": [
+          {
+            "matcher": "*",
+            "name": "PreToolUse",
+            "request": {
+              "cwd": "/workspacePaths/0",
+              "session_id": "/conversationId",
+              "tool_input": "/toolCall/args",
+              "tool_name": "/toolCall/name"
+            },
+            "responses": {
+              "allow": {
+                "exit_code": 0,
+                "stdout": {
+                  "decision": "allow"
+                }
+              },
+              "ask": {
+                "exit_code": 0,
+                "stdout": {
+                  "decision": "force_ask",
+                  "reason": "{message}"
+                }
+              },
+              "deny": {
+                "exit_code": 0,
+                "stdout": {
+                  "decision": "deny",
+                  "reason": "{message}"
+                }
+              }
+            },
+            "role": "pre_tool",
+            "verdicts": [
+              "allow",
+              "ask",
+              "deny"
+            ]
+          },
+          {
+            "matcher": "*",
+            "name": "PostToolUse",
+            "request": {
+              "cwd": "/workspacePaths/0",
+              "session_id": "/conversationId",
+              "tool_input": "/toolCall/args",
+              "tool_name": "/toolCall/name"
+            },
+            "responses": {
+              "none": {
+                "exit_code": 0,
+                "stdout": {}
+              }
+            },
+            "role": "post_tool",
+            "verdicts": []
+          },
+          {
+            "name": "SessionStart",
+            "request": {
+              "cwd": "/workspacePaths/0",
+              "session_id": "/conversationId"
+            },
+            "responses": {
+              "none": {
+                "exit_code": 0,
+                "stdout": {}
+              }
+            },
+            "role": "session_start",
+            "verdicts": []
+          }
+        ],
+        "fail_closed_option": null,
+        "install": {
+          "free": {
+            "paths": {
+              "any": [
+                "~/.gemini/config/hooks.json"
+              ]
+            },
+            "tier": "user"
+          }
+        },
+        "registration": "antigravity_hooks",
+        "timeout_seconds": 10,
+        "trust": {
+          "required": false
+        }
+      },
+      "mcp_sources": [
+        {
+          "format": "json",
+          "paths": {
+            "any": [
+              "~/.gemini/config/mcp_config.json"
+            ]
+          },
+          "pointer": "/mcpServers",
+          "tier": "user"
+        },
+        {
+          "format": "json",
+          "paths": {
+            "any": [
+              ".agents/mcp_config.json"
+            ]
+          },
+          "pointer": "/mcpServers",
+          "tier": "project"
+        }
+      ],
+      "memory_files": [
+        {
+          "format": "markdown",
+          "imports": true,
+          "kind": "instructions",
+          "paths": {
+            "any": [
+              "~/.gemini/AGENTS.md",
+              "~/.gemini/GEMINI.md",
+              "~/.gemini/config/AGENTS.md",
+              "~/.gemini/config/GEMINI.md"
+            ]
+          },
+          "tier": "user"
+        },
+        {
+          "format": "markdown",
+          "kind": "rules",
+          "note": "Each rule file needs frontmatter with a trigger (always_on, model_decision, glob or manual); files without it are ignored.",
+          "paths": {
+            "any": [
+              "~/.gemini/config/rules/*.md",
+              "~/.gemini/antigravity-cli/rules/*.md"
+            ]
+          },
+          "tier": "user"
+        },
+        {
+          "format": "markdown",
+          "imports": true,
+          "kind": "instructions",
+          "nested": true,
+          "note": "Loaded for the folder of every file the agent reads or edits, up to the workspace root.",
+          "paths": {
+            "any": [
+              "AGENTS.md",
+              "GEMINI.md",
+              ".agents/AGENTS.md",
+              ".agents/GEMINI.md"
+            ]
+          },
+          "tier": "project"
+        },
+        {
+          "format": "markdown",
+          "kind": "rules",
+          "paths": {
+            "any": [
+              ".agents/rules/*.md"
+            ]
+          },
+          "tier": "project"
+        }
+      ],
+      "notes": [
+        "The global hooks file is shared by the agy CLI, the desktop app and the IDE, so one install covers all three. Workspace hooks load only in trusted folders.",
+        "A PreToolUse hook that crashes, times out or exits non-zero blocks the call (reported from testing with agy 1.1.21, not documented).",
+        "--dangerously-skip-permissions skips PreToolUse hooks entirely.",
+        "MCP tools appear under their own names, without the server, so MCP calls are classified as other.",
+        "Hooks run with only allowed environment variables; privometry-hook finds the home folder from the account database when HOME is missing."
+      ],
+      "posture_checks": [
+        "auto_approve_mode",
+        "project_mcp_server",
+        "unpinned_mcp_server",
+        "project_hook",
+        "secret_in_config"
+      ],
+      "schema": "privometry.adapter/v1",
+      "tool_kinds": {
+        "*": "other",
+        "find_by_name": "file_read",
+        "grep_search": "file_read",
+        "invoke_subagent": "subagent_spawn",
+        "list_dir": "file_read",
+        "multi_replace_file_content": "file_write",
+        "read_url_content": "network_fetch",
+        "replace_file_content": "file_write",
+        "run_command": "shell_exec",
+        "search_web": "web_search",
+        "view_file": "file_read",
+        "write_to_file": "file_write"
+      },
+      "tool_targets": {
+        "find_by_name": {
+          "path": "/SearchDirectory"
+        },
+        "grep_search": {
+          "path": "/SearchPath"
+        },
+        "list_dir": {
+          "path": "/DirectoryPath"
+        },
+        "multi_replace_file_content": {
+          "content": "/ReplacementChunks",
+          "path": "/TargetFile"
+        },
+        "read_url_content": {
+          "url": "/Url"
+        },
+        "replace_file_content": {
+          "content": "/ReplacementContent",
+          "path": "/TargetFile"
+        },
+        "run_command": {
+          "command": "/CommandLine"
+        },
+        "search_web": {
+          "query": "/query"
+        },
+        "view_file": {
+          "path": "/AbsolutePath"
+        },
+        "write_to_file": {
+          "content": "/CodeContent",
+          "path": "/TargetFile"
+        }
+      },
+      "verified": [],
+      "versions": "\u003e=1.1.21 \u003c2.0.0"
+    },
+    {
       "agent": "claude_code",
       "config_tiers": [
         {
@@ -667,6 +990,387 @@
       "versions": "\u003e=0.14.0 \u003c1.0.0"
     },
     {
+      "agent": "copilot_cli",
+      "config_tiers": [
+        {
+          "format": "json",
+          "holds": [
+            "settings",
+            "hooks"
+          ],
+          "paths": {
+            "any": [
+              "~/.copilot/settings.json"
+            ]
+          },
+          "tier": "user"
+        },
+        {
+          "format": "json",
+          "holds": [
+            "settings",
+            "permissions"
+          ],
+          "paths": {
+            "any": [
+              "~/.copilot/config.json"
+            ]
+          },
+          "tier": "user"
+        },
+        {
+          "format": "json",
+          "holds": [
+            "hooks"
+          ],
+          "paths": {
+            "any": [
+              "~/.copilot/hooks/*.json"
+            ]
+          },
+          "tier": "user"
+        },
+        {
+          "format": "json",
+          "holds": [
+            "hooks"
+          ],
+          "paths": {
+            "any": [
+              ".github/hooks/*.json"
+            ]
+          },
+          "tier": "project"
+        },
+        {
+          "format": "json",
+          "holds": [
+            "settings",
+            "hooks"
+          ],
+          "paths": {
+            "any": [
+              ".github/copilot/settings.json",
+              ".github/copilot/settings.local.json"
+            ]
+          },
+          "tier": "project"
+        },
+        {
+          "format": "json",
+          "holds": [
+            "settings",
+            "hooks"
+          ],
+          "paths": {
+            "linux": [
+              "/etc/github-copilot/policy.d/*.json"
+            ],
+            "macos": [
+              "/etc/github-copilot/policy.d/*.json"
+            ],
+            "windows": [
+              "C:\\ProgramData\\GitHub\\Copilot\\policy.d\\*.json"
+            ]
+          },
+          "tier": "managed"
+        },
+        {
+          "format": "markdown",
+          "holds": [
+            "skills"
+          ],
+          "paths": {
+            "any": [
+              "~/.copilot/skills/*/SKILL.md"
+            ]
+          },
+          "tier": "user"
+        },
+        {
+          "format": "markdown",
+          "holds": [
+            "skills"
+          ],
+          "paths": {
+            "any": [
+              ".github/skills/*/SKILL.md"
+            ]
+          },
+          "tier": "project"
+        }
+      ],
+      "detect": {
+        "binaries": [
+          "copilot"
+        ],
+        "bypass_flags": [
+          "--allow-all-tools",
+          "--yolo"
+        ],
+        "processes": [
+          "copilot"
+        ],
+        "version_cmd": [
+          "copilot",
+          "--version"
+        ]
+      },
+      "display_name": "Copilot CLI",
+      "env_overrides": [
+        {
+          "replaces": "~/.copilot",
+          "var": "COPILOT_HOME"
+        }
+      ],
+      "hooks": {
+        "events": [
+          {
+            "name": "preToolUse",
+            "request": {
+              "cwd": "/cwd",
+              "session_id": "/sessionId",
+              "tool_input": "/toolArgs",
+              "tool_name": "/toolName"
+            },
+            "responses": {
+              "allow": {
+                "exit_code": 0,
+                "stdout": {
+                  "permissionDecision": "allow"
+                }
+              },
+              "ask": {
+                "exit_code": 0,
+                "stdout": {
+                  "permissionDecision": "ask",
+                  "permissionDecisionReason": "{message}"
+                }
+              },
+              "deny": {
+                "exit_code": 0,
+                "stdout": {
+                  "permissionDecision": "deny",
+                  "permissionDecisionReason": "{message}"
+                }
+              }
+            },
+            "role": "pre_tool",
+            "verdicts": [
+              "allow",
+              "ask",
+              "deny"
+            ]
+          },
+          {
+            "name": "postToolUse",
+            "request": {
+              "cwd": "/cwd",
+              "session_id": "/sessionId",
+              "tool_input": "/toolArgs",
+              "tool_name": "/toolName",
+              "tool_response": "/toolResult/textResultForLlm"
+            },
+            "responses": {
+              "none": {
+                "exit_code": 0,
+                "stdout": null
+              }
+            },
+            "role": "post_tool",
+            "verdicts": []
+          },
+          {
+            "name": "userPromptSubmitted",
+            "request": {
+              "cwd": "/cwd",
+              "prompt": "/prompt",
+              "session_id": "/sessionId"
+            },
+            "responses": {
+              "none": {
+                "exit_code": 0,
+                "stdout": null
+              }
+            },
+            "role": "prompt_submit",
+            "verdicts": []
+          },
+          {
+            "name": "sessionStart",
+            "request": {
+              "cwd": "/cwd",
+              "session_id": "/sessionId"
+            },
+            "responses": {
+              "none": {
+                "exit_code": 0,
+                "stdout": null
+              }
+            },
+            "role": "session_start",
+            "verdicts": []
+          },
+          {
+            "name": "sessionEnd",
+            "request": {
+              "cwd": "/cwd",
+              "session_id": "/sessionId"
+            },
+            "responses": {
+              "none": {
+                "exit_code": 0,
+                "stdout": null
+              }
+            },
+            "role": "session_end",
+            "verdicts": []
+          }
+        ],
+        "fail_closed_option": null,
+        "install": {
+          "enterprise": {
+            "paths": {
+              "linux": [
+                "/etc/github-copilot/policy.d/privometry.json"
+              ],
+              "macos": [
+                "/etc/github-copilot/policy.d/privometry.json"
+              ],
+              "windows": [
+                "C:\\ProgramData\\GitHub\\Copilot\\policy.d\\privometry.json"
+              ]
+            },
+            "tier": "managed"
+          },
+          "free": {
+            "paths": {
+              "any": [
+                "~/.copilot/hooks/privometry.json"
+              ]
+            },
+            "tier": "user"
+          }
+        },
+        "registration": "copilot_hooks",
+        "timeout_seconds": 10,
+        "trust": {
+          "required": false
+        }
+      },
+      "mcp_sources": [
+        {
+          "format": "json",
+          "paths": {
+            "any": [
+              "~/.copilot/mcp-config.json"
+            ]
+          },
+          "pointer": "/mcpServers",
+          "tier": "user"
+        }
+      ],
+      "memory_files": [
+        {
+          "format": "markdown",
+          "kind": "instructions",
+          "paths": {
+            "any": [
+              "~/.copilot/copilot-instructions.md"
+            ]
+          },
+          "tier": "user"
+        },
+        {
+          "format": "markdown",
+          "kind": "instructions",
+          "paths": {
+            "any": [
+              ".github/copilot-instructions.md"
+            ]
+          },
+          "tier": "project"
+        },
+        {
+          "format": "markdown",
+          "kind": "rules",
+          "note": "Path-specific instructions; applyTo frontmatter says which files they cover.",
+          "paths": {
+            "any": [
+              ".github/instructions/*.instructions.md"
+            ]
+          },
+          "tier": "project"
+        },
+        {
+          "format": "markdown",
+          "kind": "instructions",
+          "nested": true,
+          "paths": {
+            "any": [
+              "AGENTS.md"
+            ]
+          },
+          "tier": "project"
+        }
+      ],
+      "notes": [
+        "preToolUse hooks fail closed when they crash or exit non-zero, but open when they time out. Ask is treated as deny in autopilot mode and by the cloud agent.",
+        "MCP tool names are not documented, so MCP calls are classified as other until payloads are recorded.",
+        "Copilot also runs the hooks in a repository's .claude/settings.json; Privometry installs Claude Code's hook at user scope, which Copilot does not read."
+      ],
+      "posture_checks": [
+        "project_mcp_server",
+        "unpinned_mcp_server",
+        "project_hook",
+        "secret_in_config",
+        "writable_managed_config"
+      ],
+      "schema": "privometry.adapter/v1",
+      "tool_kinds": {
+        "*": "other",
+        "bash": "shell_exec",
+        "create": "file_write",
+        "edit": "file_write",
+        "glob": "file_read",
+        "grep": "file_read",
+        "powershell": "shell_exec",
+        "task": "subagent_spawn",
+        "view": "file_read",
+        "web_fetch": "network_fetch"
+      },
+      "tool_targets": {
+        "bash": {
+          "command": "/command"
+        },
+        "create": {
+          "content": "/file_text",
+          "path": "/path"
+        },
+        "edit": {
+          "content": "/new_str",
+          "path": "/path"
+        },
+        "glob": {
+          "path": "/path"
+        },
+        "grep": {
+          "path": "/path"
+        },
+        "powershell": {
+          "command": "/command"
+        },
+        "view": {
+          "path": "/path"
+        },
+        "web_fetch": {
+          "url": "/url"
+        }
+      },
+      "verified": [],
+      "versions": "\u003e=1.0.0 \u003c2.0.0"
+    },
+    {
       "agent": "cursor",
       "config_tiers": [
         {
@@ -1009,6 +1713,352 @@
       },
       "verified": [],
       "versions": "\u003e=1.7.0 \u003c3.0.0"
+    },
+    {
+      "agent": "gemini_cli",
+      "config_tiers": [
+        {
+          "format": "json",
+          "holds": [
+            "settings",
+            "permissions",
+            "mcp_servers",
+            "hooks"
+          ],
+          "paths": {
+            "any": [
+              "~/.gemini/settings.json"
+            ]
+          },
+          "tier": "user"
+        },
+        {
+          "format": "json",
+          "holds": [
+            "settings",
+            "permissions",
+            "mcp_servers",
+            "hooks"
+          ],
+          "paths": {
+            "any": [
+              ".gemini/settings.json"
+            ]
+          },
+          "requires_trust": true,
+          "tier": "project"
+        },
+        {
+          "format": "json",
+          "holds": [
+            "settings",
+            "permissions",
+            "mcp_servers",
+            "hooks"
+          ],
+          "paths": {
+            "linux": [
+              "/etc/gemini-cli/settings.json"
+            ],
+            "macos": [
+              "/Library/Application Support/GeminiCli/settings.json"
+            ],
+            "windows": [
+              "C:\\ProgramData\\gemini-cli\\settings.json"
+            ]
+          },
+          "tier": "managed"
+        },
+        {
+          "format": "markdown",
+          "holds": [
+            "skills"
+          ],
+          "paths": {
+            "any": [
+              "~/.gemini/skills/*/SKILL.md"
+            ]
+          },
+          "tier": "user"
+        },
+        {
+          "format": "markdown",
+          "holds": [
+            "skills"
+          ],
+          "paths": {
+            "any": [
+              ".gemini/skills/*/SKILL.md"
+            ]
+          },
+          "tier": "project"
+        }
+      ],
+      "detect": {
+        "binaries": [
+          "gemini"
+        ],
+        "bypass_flags": [
+          "--yolo",
+          "-y",
+          "--approval-mode yolo"
+        ],
+        "processes": [
+          "gemini"
+        ],
+        "version_cmd": [
+          "gemini",
+          "--version"
+        ]
+      },
+      "display_name": "Gemini CLI",
+      "hooks": {
+        "events": [
+          {
+            "fallback": {
+              "ask": "deny"
+            },
+            "matcher": ".*",
+            "name": "BeforeTool",
+            "request": {
+              "cwd": "/cwd",
+              "mcp_server": "/mcp_context/server_name",
+              "session_id": "/session_id",
+              "tool_input": "/tool_input",
+              "tool_name": "/tool_name"
+            },
+            "responses": {
+              "allow": {
+                "exit_code": 0,
+                "stdout": {
+                  "decision": "allow"
+                }
+              },
+              "deny": {
+                "exit_code": 0,
+                "stdout": {
+                  "decision": "deny",
+                  "reason": "{message}",
+                  "systemMessage": "{message}"
+                }
+              }
+            },
+            "role": "pre_tool",
+            "verdicts": [
+              "allow",
+              "deny"
+            ]
+          },
+          {
+            "matcher": ".*",
+            "name": "AfterTool",
+            "request": {
+              "cwd": "/cwd",
+              "mcp_server": "/mcp_context/server_name",
+              "session_id": "/session_id",
+              "tool_input": "/tool_input",
+              "tool_name": "/tool_name",
+              "tool_response": "/tool_response/llmContent"
+            },
+            "responses": {
+              "none": {
+                "exit_code": 0,
+                "stdout": null
+              }
+            },
+            "role": "post_tool",
+            "verdicts": []
+          },
+          {
+            "name": "BeforeAgent",
+            "request": {
+              "cwd": "/cwd",
+              "prompt": "/prompt",
+              "session_id": "/session_id"
+            },
+            "responses": {
+              "none": {
+                "exit_code": 0,
+                "stdout": null
+              }
+            },
+            "role": "prompt_submit",
+            "verdicts": []
+          },
+          {
+            "name": "SessionStart",
+            "request": {
+              "cwd": "/cwd",
+              "session_id": "/session_id"
+            },
+            "responses": {
+              "none": {
+                "exit_code": 0,
+                "stdout": null
+              }
+            },
+            "role": "session_start",
+            "verdicts": []
+          },
+          {
+            "name": "SessionEnd",
+            "request": {
+              "cwd": "/cwd",
+              "session_id": "/session_id"
+            },
+            "responses": {
+              "none": {
+                "exit_code": 0,
+                "stdout": null
+              }
+            },
+            "role": "session_end",
+            "verdicts": []
+          }
+        ],
+        "fail_closed_option": null,
+        "install": {
+          "enterprise": {
+            "paths": {
+              "linux": [
+                "/etc/gemini-cli/settings.json"
+              ],
+              "macos": [
+                "/Library/Application Support/GeminiCli/settings.json"
+              ],
+              "windows": [
+                "C:\\ProgramData\\gemini-cli\\settings.json"
+              ]
+            },
+            "tier": "managed"
+          },
+          "free": {
+            "paths": {
+              "any": [
+                "~/.gemini/settings.json"
+              ]
+            },
+            "tier": "user"
+          }
+        },
+        "registration": "gemini_settings",
+        "timeout_seconds": 10,
+        "trust": {
+          "required": false
+        }
+      },
+      "mcp_sources": [
+        {
+          "format": "json",
+          "paths": {
+            "any": [
+              "~/.gemini/settings.json"
+            ]
+          },
+          "pointer": "/mcpServers",
+          "tier": "user"
+        },
+        {
+          "format": "json",
+          "paths": {
+            "any": [
+              ".gemini/settings.json"
+            ]
+          },
+          "pointer": "/mcpServers",
+          "tier": "project"
+        }
+      ],
+      "mcp_tools": {
+        "name_template": "mcp_{server}_{tool}"
+      },
+      "memory_files": [
+        {
+          "format": "markdown",
+          "imports": true,
+          "kind": "memory",
+          "note": "Global context; the save_memory tool appends facts under \"## Gemini Added Memories\".",
+          "paths": {
+            "any": [
+              "~/.gemini/GEMINI.md"
+            ]
+          },
+          "tier": "user",
+          "written_by_agent": true
+        },
+        {
+          "format": "markdown",
+          "imports": true,
+          "kind": "instructions",
+          "nested": true,
+          "note": "Read from the working folder up to the project root and below it; context.fileName in settings can name other files (such as AGENTS.md).",
+          "paths": {
+            "any": [
+              "GEMINI.md"
+            ]
+          },
+          "tier": "project"
+        }
+      ],
+      "notes": [
+        "Gemini CLI hooks cannot ask, and fail open when a hook crashes, times out or prints something other than JSON; Privometry sends deny with a message for ask verdicts.",
+        "web_fetch takes a prompt that contains the URLs, so fetches carry no URL target.",
+        "Gemini CLI was retired for consumer tiers on 2026-06-18 in favor of Antigravity CLI; it stays available with Gemini Code Assist Standard and Enterprise licenses and paid API keys."
+      ],
+      "posture_checks": [
+        "auto_approve_mode",
+        "project_mcp_server",
+        "unpinned_mcp_server",
+        "project_hook",
+        "secret_in_config",
+        "writable_managed_config"
+      ],
+      "schema": "privometry.adapter/v1",
+      "tool_kinds": {
+        "*": "other",
+        "glob": "file_read",
+        "google_web_search": "web_search",
+        "grep_search": "file_read",
+        "list_directory": "file_read",
+        "mcp_*": "mcp_call",
+        "read_file": "file_read",
+        "read_many_files": "file_read",
+        "replace": "file_write",
+        "run_shell_command": "shell_exec",
+        "search_file_content": "file_read",
+        "web_fetch": "network_fetch",
+        "write_file": "file_write"
+      },
+      "tool_targets": {
+        "glob": {
+          "path": "/dir_path"
+        },
+        "google_web_search": {
+          "query": "/query"
+        },
+        "grep_search": {
+          "path": "/dir_path"
+        },
+        "list_directory": {
+          "path": "/dir_path"
+        },
+        "read_file": {
+          "path": "/file_path"
+        },
+        "replace": {
+          "content": "/new_string",
+          "path": "/file_path"
+        },
+        "run_shell_command": {
+          "command": "/command"
+        },
+        "write_file": {
+          "content": "/content",
+          "path": "/file_path"
+        }
+      },
+      "verified": [],
+      "versions": "\u003e=0.26.0 \u003c1.0.0"
     }
   ],
   "min_sensor_version": "0.1.0",

@@ -68,6 +68,10 @@ Shipped packs include:
 
 Pack IDs and rule IDs are public compatibility identifiers. Avoid renaming them after release.
 
+## Content allowlists
+
+Policy files can list `allowlist` entries for content findings people have checked, such as fake keys in test fixtures. Each entry names detectors (`privometry/credentials:aws-access-key`, or `privometry/credentials:*`) and narrows them by repo-relative path globs, exact values, or both, with a reason and an optional `expires_at`. Allowlisted findings are dropped before they become policy facts, in the daemon and in `privometry scan`. See `docs/content-scanning.md`.
+
 ## Testing
 
 Test the current local policy:

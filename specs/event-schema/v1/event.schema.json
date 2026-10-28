@@ -666,8 +666,35 @@
             "config_hash_mismatch",
             "sensor_binary_modified",
             "sequence_gap",
+            "hooks_bypassed",
+            "hooks_disabled",
+            "hooks_silent",
+            "sensor_stopped",
+            "sensor_uninstalled",
             "other"
-          ]
+          ],
+          "description": "hooks_bypassed: a running agent was started with a flag from its adapter's detect.bypass_flags, which skips its permission prompts or its hooks; detail names the flag, never the command line. hooks_disabled: a config file turns the agent's hooks off (adapter hooks.disable_settings) or turns Privometry's own entry off. hooks_silent: an agent has run for minutes and its hooks never called Privometry; reason says why when it is known. sensor_stopped: privometryd was down for more than five minutes outside a shutdown or reboot (down_seconds, actions_while_down). sensor_uninstalled: privometry daemon uninstall removed the sensor."
+        },
+        "reason": {
+          "enum": [
+            "setting",
+            "config_dir_override",
+            "untrusted_hook",
+            "killed",
+            "stopped",
+            "unknown"
+          ],
+          "description": "Why the check fired, when it can be known. hooks_silent: setting (a setting turns hooks off), config_dir_override (the agent runs with a config folder from one of its env_overrides that has no Privometry hook), untrusted_hook (the agent has not approved the hook), or unknown. sensor_stopped: killed (no stop marker) or stopped (a graceful stop)."
+        },
+        "down_seconds": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "sensor_stopped: how long privometryd was down."
+        },
+        "actions_while_down": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "sensor_stopped: how many decisions privometry-hook made with its fail modes while privometryd was down: the evidence that agents were used while it was off."
         },
         "agent_product": {
           "$ref": "../../common/v1/common.schema.json#/$defs/agent_product"
@@ -785,6 +812,16 @@
                 "stdio",
                 "http"
               ]
+            },
+            "package": {
+              "type": "string",
+              "maxLength": 256,
+              "description": "For MCP servers: the package the server runs, such as @modelcontextprotocol/server-github, without a version. Organization catalogs match on it."
+            },
+            "host": {
+              "type": "string",
+              "maxLength": 253,
+              "description": "For HTTP MCP servers: the host of the server's URL, without credentials, path or query."
             },
             "posture": {
               "type": "object",
@@ -944,7 +981,7 @@
         "fingerprint": {
           "type": "string",
           "pattern": "^hmac-sha256:[0-9a-f]{64}$",
-          "description": "Credentials only: salted hash of the secret, to spot the same secret on several devices."
+          "description": "Credentials only: HMAC-SHA256 of the secret. On an enrolled device the key is the organization's hash key, so the same secret has the same fingerprint on every device of the organization and the platform can track it across devices (PRD SCAN-15); otherwise it is a key that never leaves the device, and such fingerprints are not uploaded."
         },
         "action_taken": {
           "enum": [

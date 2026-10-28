@@ -84,8 +84,10 @@ var rules = []rule{
 }
 
 var (
-	homePathRE  = regexp.MustCompile(`~/[^\s'";|&<>()]+`)
+	homePathRE  = regexp.MustCompile(`~[/\\][^\s'";|&<>()]+`)
 	otherHomeRE = regexp.MustCompile(`(/Users|/home)/[^/\s'"<>]+`)
+	// Windows profiles: C:\Users\<name>.
+	otherWinHomeRE = regexp.MustCompile(`(?i)\b([a-z]:\\Users)\\[^\\\s'"<>]+`)
 )
 
 // Redact applies every rule to s.
@@ -111,7 +113,7 @@ func Secrets(s, home string) string {
 	if home != "" {
 		s = replacePrefix(s, home, "~")
 	}
-	return otherHomeRE.ReplaceAllString(s, "$1/<user>")
+	return otherUsers(s)
 }
 
 // redactPaths keeps paths inside the repo as <repo>/..., keeps system paths,
@@ -123,15 +125,21 @@ func redactPaths(s string, ctx Context) string {
 	if ctx.Home != "" {
 		s = replacePrefix(s, ctx.Home, "~")
 	}
-	if ctx.RepoRoot != "" && ctx.Home != "" && strings.HasPrefix(ctx.RepoRoot, ctx.Home+"/") {
+	if ctx.RepoRoot != "" && ctx.Home != "" && (strings.HasPrefix(ctx.RepoRoot, ctx.Home+"/") || strings.HasPrefix(ctx.RepoRoot, ctx.Home+`\`)) {
 		s = replacePrefix(s, "~"+strings.TrimPrefix(ctx.RepoRoot, ctx.Home), "<repo>")
 	}
 	s = homePathRE.ReplaceAllString(s, "~/<redacted_path>")
-	return otherHomeRE.ReplaceAllString(s, "$1/<user>")
+	return otherUsers(s)
 }
 
-// replacePrefix replaces path at a path boundary: followed by /, the end, or
-// a character that cannot be part of a path name.
+// otherUsers hides user names in other people's home folders.
+func otherUsers(s string) string {
+	s = otherHomeRE.ReplaceAllString(s, "$1/<user>")
+	return otherWinHomeRE.ReplaceAllString(s, `$1\<user>`)
+}
+
+// replacePrefix replaces path at a path boundary: followed by / or \, the
+// end, or a character that cannot be part of a path name.
 func replacePrefix(s, path, with string) string {
 	var b strings.Builder
 	for {
@@ -141,7 +149,7 @@ func replacePrefix(s, path, with string) string {
 			return b.String()
 		}
 		end := i + len(path)
-		if end == len(s) || strings.ContainsRune("/ \t'\";|&)", rune(s[end])) {
+		if end == len(s) || strings.ContainsRune("/\\ \t'\";|&)", rune(s[end])) {
 			b.WriteString(s[:i] + with)
 		} else {
 			b.WriteString(s[:end])

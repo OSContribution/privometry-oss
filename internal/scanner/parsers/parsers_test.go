@@ -41,3 +41,15 @@ func TestErrors(t *testing.T) {
 		t.Errorf("oversized file: %v", err)
 	}
 }
+
+func TestLookupArrays(t *testing.T) {
+	doc, _ := parsers.Parse("json", []byte(`{"workspacePaths":["/home/dev/api","/home/dev/web"],"a":{"0":"key"}}`))
+	for pointer, want := range map[string]string{
+		"/workspacePaths/0": "/home/dev/api", "/workspacePaths/1": "/home/dev/web", "/workspacePaths/2": "",
+		"/workspacePaths/-1": "", "/workspacePaths/01": "", "/workspacePaths/x": "", "/a/0": "key",
+	} {
+		if got := parsers.String(parsers.Lookup(doc, pointer)); got != want {
+			t.Errorf("Lookup(%s) = %q, want %q", pointer, got, want)
+		}
+	}
+}

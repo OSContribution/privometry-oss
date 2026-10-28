@@ -70,6 +70,24 @@ var migrations = []string{
 	`ALTER TABLE sessions ADD COLUMN injection_seen INTEGER NOT NULL DEFAULT 0;
 	ALTER TABLE config_hashes ADD COLUMN kind TEXT NOT NULL DEFAULT 'config';
 	ALTER TABLE config_hashes ADD COLUMN changed_by TEXT NOT NULL DEFAULT '';`,
+	// Memory file snapshots (PRD SCAN-14): each version the daemon saw, with
+	// its content stored once per digest. Local only; never uploaded.
+	`CREATE TABLE memory_blobs (sha256 TEXT PRIMARY KEY, content BLOB NOT NULL);
+	CREATE TABLE memory_versions (
+		version_id INTEGER PRIMARY KEY AUTOINCREMENT,
+		path TEXT NOT NULL,
+		agent_product TEXT NOT NULL,
+		tier TEXT NOT NULL,
+		sha256 TEXT NOT NULL,
+		size INTEGER NOT NULL,
+		observed_at TEXT NOT NULL,
+		changed_by TEXT NOT NULL,
+		findings INTEGER NOT NULL,
+		restored_from INTEGER
+	);
+	CREATE INDEX memory_versions_path ON memory_versions (path, version_id);`,
+	// Watched files that turn an agent's hooks off (hooks_disabled).
+	`ALTER TABLE config_hashes ADD COLUMN hooks_off INTEGER NOT NULL DEFAULT 0;`,
 }
 
 // Open opens or creates the database at path, readable only by the user.
@@ -307,6 +325,36 @@ func (s *Store) Events(q Query) ([]Row, error) {
 	return out, rows.Err()
 }
 
+// Backlog is how many events, and how many bytes of them, come after a
+// device_seq, and when the oldest of them occurred.
+type Backlog struct {
+	Events int
+	Bytes  int64
+	Oldest time.Time
+}
+
+// BacklogAfter reports the events after afterSeq, such as those not uploaded yet.
+func (s *Store) BacklogAfter(afterSeq int64) (Backlog, error) {
+	var b Backlog
+	var oldest sql.NullString
+	err := s.db.QueryRow(`SELECT count(*), COALESCE(sum(length(payload)), 0), min(occurred_at) FROM events WHERE device_seq > ?`, afterSeq).
+		Scan(&b.Events, &b.Bytes, &oldest)
+	if err != nil {
+		return b, err
+	}
+	if oldest.Valid {
+		b.Oldest, _ = time.Parse(time.RFC3339Nano, oldest.String)
+	}
+	return b, nil
+}
+
+// LastSeq is the highest device_seq stored; 0 when there are no events.
+func (s *Store) LastSeq() (int64, error) {
+	var n int64
+	err := s.db.QueryRow(`SELECT COALESCE(max(device_seq), 0) FROM events`).Scan(&n)
+	return n, err
+}
+
 // Prune deletes events older than eventsBefore and sessions idle since
 // sessionsBefore. It returns how many events it removed.
 func (s *Store) Prune(eventsBefore, sessionsBefore time.Time) (int64, error) {
@@ -504,6 +552,7 @@ func (s *Store) Sessions(limit int) ([]SessionSummary, error) {
 type ConfigHash struct {
 	Path, Tier, Agent, SHA256 string
 	PrivometryHook            bool
+	HooksOff                  bool   // the file turns the agent's hooks off
 	Kind                      string // config or memory; empty means config
 	ChangedBy                 string // memory files: person, agent or "" when unknown
 	ObservedAt                time.Time
@@ -511,7 +560,7 @@ type ConfigHash struct {
 
 // ConfigHashes returns every watched file's last state, by path.
 func (s *Store) ConfigHashes() (map[string]ConfigHash, error) {
-	rows, err := s.db.Query(`SELECT path, tier, agent_product, sha256, privometry_hook, kind, changed_by, observed_at FROM config_hashes`)
+	rows, err := s.db.Query(`SELECT path, tier, agent_product, sha256, privometry_hook, hooks_off, kind, changed_by, observed_at FROM config_hashes`)
 	if err != nil {
 		return nil, err
 	}
@@ -519,16 +568,16 @@ func (s *Store) ConfigHashes() (map[string]ConfigHash, error) {
 	out := map[string]ConfigHash{}
 	for rows.Next() {
 		var h ConfigHash
-		var hook int
+		var hook, off int
 		var observed string
-		if err := rows.Scan(&h.Path, &h.Tier, &h.Agent, &h.SHA256, &hook, &h.Kind, &h.ChangedBy, &observed); err != nil {
+		if err := rows.Scan(&h.Path, &h.Tier, &h.Agent, &h.SHA256, &hook, &off, &h.Kind, &h.ChangedBy, &observed); err != nil {
 			return nil, err
 		}
 		var err error
 		if h.ObservedAt, err = time.Parse(time.RFC3339Nano, observed); err != nil {
 			return nil, fmt.Errorf("timeline: config hash %q has invalid observed_at: %w", h.Path, err)
 		}
-		h.PrivometryHook = hook != 0
+		h.PrivometryHook, h.HooksOff = hook != 0, off != 0
 		out[h.Path] = h
 	}
 	return out, rows.Err()
@@ -536,16 +585,158 @@ func (s *Store) ConfigHashes() (map[string]ConfigHash, error) {
 
 // SetConfigHash stores a watched file's state.
 func (s *Store) SetConfigHash(h ConfigHash, at time.Time) error {
-	hook := 0
+	hook, off := 0, 0
 	if h.PrivometryHook {
 		hook = 1
+	}
+	if h.HooksOff {
+		off = 1
 	}
 	if h.Kind == "" {
 		h.Kind = "config"
 	}
-	_, err := s.db.Exec(`INSERT INTO config_hashes (path, tier, agent_product, sha256, privometry_hook, observed_at, kind, changed_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+	_, err := s.db.Exec(`INSERT INTO config_hashes (path, tier, agent_product, sha256, privometry_hook, hooks_off, observed_at, kind, changed_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(path) DO UPDATE SET tier = excluded.tier, agent_product = excluded.agent_product, sha256 = excluded.sha256,
-		privometry_hook = excluded.privometry_hook, observed_at = excluded.observed_at, kind = excluded.kind, changed_by = excluded.changed_by`,
-		h.Path, h.Tier, h.Agent, h.SHA256, hook, contract.At(at).String(), h.Kind, h.ChangedBy)
+		privometry_hook = excluded.privometry_hook, hooks_off = excluded.hooks_off, observed_at = excluded.observed_at, kind = excluded.kind, changed_by = excluded.changed_by`,
+		h.Path, h.Tier, h.Agent, h.SHA256, hook, off, contract.At(at).String(), h.Kind, h.ChangedBy)
 	return err
+}
+
+// MemoryVersion is one version of a memory or instruction file. SHA256 is
+// empty for a version where the file was deleted.
+type MemoryVersion struct {
+	ID           int64     `json:"version"`
+	Path         string    `json:"path"`
+	Agent        string    `json:"agent"`
+	Tier         string    `json:"tier"`
+	SHA256       string    `json:"sha256,omitempty"`
+	Size         int64     `json:"size"`
+	ObservedAt   time.Time `json:"observed_at"`
+	ChangedBy    string    `json:"changed_by"` // first, person, agent or restore
+	Findings     int       `json:"findings"`   // content findings when it was seen
+	RestoredFrom int64     `json:"restored_from,omitempty"`
+}
+
+// AddMemoryVersion records a version and keeps its content, once per digest.
+func (s *Store) AddMemoryVersion(v MemoryVersion, content []byte) (int64, error) {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
+	if v.SHA256 != "" {
+		if _, err := tx.Exec(`INSERT INTO memory_blobs (sha256, content) VALUES (?, ?) ON CONFLICT(sha256) DO NOTHING`, v.SHA256, content); err != nil {
+			return 0, err
+		}
+	}
+	var restored any
+	if v.RestoredFrom != 0 {
+		restored = v.RestoredFrom
+	}
+	res, err := tx.Exec(`INSERT INTO memory_versions (path, agent_product, tier, sha256, size, observed_at, changed_by, findings, restored_from)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, v.Path, v.Agent, v.Tier, v.SHA256, v.Size, contract.At(v.ObservedAt).String(), v.ChangedBy, v.Findings, restored)
+	if err != nil {
+		return 0, err
+	}
+	id, err := res.LastInsertId()
+	if err != nil {
+		return 0, err
+	}
+	return id, tx.Commit()
+}
+
+const memoryColumns = `version_id, path, agent_product, tier, sha256, size, observed_at, changed_by, findings, COALESCE(restored_from, 0)`
+
+func scanMemoryVersion(sc interface{ Scan(...any) error }) (MemoryVersion, error) {
+	var v MemoryVersion
+	var observed string
+	if err := sc.Scan(&v.ID, &v.Path, &v.Agent, &v.Tier, &v.SHA256, &v.Size, &observed, &v.ChangedBy, &v.Findings, &v.RestoredFrom); err != nil {
+		return v, err
+	}
+	var err error
+	v.ObservedAt, err = time.Parse(time.RFC3339Nano, observed)
+	return v, err
+}
+
+// MemoryVersions returns a file's versions, newest first.
+func (s *Store) MemoryVersions(path string) ([]MemoryVersion, error) {
+	rows, err := s.db.Query(`SELECT `+memoryColumns+` FROM memory_versions WHERE path = ? ORDER BY version_id DESC`, path)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []MemoryVersion
+	for rows.Next() {
+		v, err := scanMemoryVersion(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, v)
+	}
+	return out, rows.Err()
+}
+
+// LatestMemoryVersions returns the newest version of every file, with how
+// many versions each has.
+func (s *Store) LatestMemoryVersions() ([]MemoryVersion, map[string]int, error) {
+	rows, err := s.db.Query(`SELECT ` + memoryColumns + ` FROM memory_versions WHERE version_id IN
+		(SELECT MAX(version_id) FROM memory_versions GROUP BY path) ORDER BY path`)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer rows.Close()
+	var out []MemoryVersion
+	for rows.Next() {
+		v, err := scanMemoryVersion(rows)
+		if err != nil {
+			return nil, nil, err
+		}
+		out = append(out, v)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, nil, err
+	}
+	counts := map[string]int{}
+	crows, err := s.db.Query(`SELECT path, COUNT(*) FROM memory_versions GROUP BY path`)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer crows.Close()
+	for crows.Next() {
+		var p string
+		var n int
+		if err := crows.Scan(&p, &n); err != nil {
+			return nil, nil, err
+		}
+		counts[p] = n
+	}
+	return out, counts, crows.Err()
+}
+
+// MemoryVersion returns one version and its content (nil for a deletion).
+func (s *Store) MemoryVersion(id int64) (MemoryVersion, []byte, error) {
+	v, err := scanMemoryVersion(s.db.QueryRow(`SELECT `+memoryColumns+` FROM memory_versions WHERE version_id = ?`, id))
+	if err != nil {
+		return v, nil, err
+	}
+	if v.SHA256 == "" {
+		return v, nil, nil
+	}
+	var content []byte
+	err = s.db.QueryRow(`SELECT content FROM memory_blobs WHERE sha256 = ?`, v.SHA256).Scan(&content)
+	return v, content, err
+}
+
+// PruneMemory keeps, per file, the newest keep versions and every version
+// newer than since, then drops content no version refers to.
+func (s *Store) PruneMemory(keep int, since time.Time) (int64, error) {
+	res, err := s.db.Exec(`DELETE FROM memory_versions WHERE observed_at < ? AND version_id NOT IN (
+		SELECT version_id FROM (SELECT version_id, ROW_NUMBER() OVER (PARTITION BY path ORDER BY version_id DESC) AS n FROM memory_versions) WHERE n <= ?)`,
+		contract.At(since).String(), keep)
+	if err != nil {
+		return 0, err
+	}
+	n, _ := res.RowsAffected()
+	_, err = s.db.Exec(`DELETE FROM memory_blobs WHERE sha256 NOT IN (SELECT sha256 FROM memory_versions)`)
+	return n, err
 }

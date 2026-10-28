@@ -76,6 +76,13 @@
         "$ref": "#/$defs/exception"
       }
     },
+    "allowlist": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/allow_entry"
+      },
+      "description": "Content findings people have checked and accept, such as fake keys in test fixtures (PRD SCAN-09). Each entry covers the listed detectors only where its paths or values match."
+    },
     "ext": {
       "$ref": "../../common/v1/common.schema.json#/$defs/ext"
     }
@@ -559,6 +566,63 @@
         }
       },
       "unevaluatedProperties": false
+    },
+    "allow_entry": {
+      "description": "Ignores findings of the listed detectors where the paths, the values, or both match. An entry never turns a detector off everywhere: it needs paths or values. Paths are repo-relative for files in the repo and start with ~/ for files in the home folder; they apply to files at rest and to file writes, not to commands, URLs or MCP arguments. Values are the exact matched text (for credentials, the credential itself), so list only example and test values. Expired entries are ignored.",
+      "type": "object",
+      "required": [
+        "detectors",
+        "reason"
+      ],
+      "properties": {
+        "detectors": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*/[a-z0-9]+(-[a-z0-9]+)*:([a-z0-9]+(-[a-z0-9]+)*|\\*)$"
+          },
+          "description": "Qualified detector IDs such as privometry/credentials:aws-access-key, or <pack>:* for every detector in a pack."
+        },
+        "paths": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/glob"
+          }
+        },
+        "values": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 4,
+            "maxLength": 1024
+          }
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024
+        },
+        "expires_at": {
+          "$ref": "#/$defs/timestamp_input"
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "paths"
+          ]
+        },
+        {
+          "required": [
+            "values"
+          ]
+        }
+      ],
+      "additionalProperties": false
     },
     "secret_type": {
       "type": "string",

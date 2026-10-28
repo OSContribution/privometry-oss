@@ -347,10 +347,34 @@ const (
 
 // Integrity is generated from event-schema/v1/event.schema.json#/$defs/integrity.
 type Integrity struct {
-	Check        IntegrityCheck        `json:"check"`
-	AgentProduct contract.AgentProduct `json:"agent_product,omitempty"`
-	Tier         contract.ConfigTier   `json:"tier,omitempty"`
-	Path         string                `json:"path,omitempty"`
+	// hooks_bypassed: a running agent was started with a flag from its adapter's
+	// detect.bypass_flags, which skips its permission prompts or its hooks; detail
+	// names the flag, never the command line. hooks_disabled: a config file turns
+	// the agent's hooks off (adapter hooks.disable_settings) or turns Privometry's
+	// own entry off. hooks_silent: an agent has run for minutes and its hooks
+	// never called Privometry; reason says why when it is known. sensor_stopped:
+	// privometryd was down for more than five minutes outside a shutdown or reboot
+	// (down_seconds, actions_while_down). sensor_uninstalled: privometry daemon
+	// uninstall removed the sensor.
+	Check IntegrityCheck `json:"check"`
+
+	// Why the check fired, when it can be known. hooks_silent: setting (a setting
+	// turns hooks off), config_dir_override (the agent runs with a config folder
+	// from one of its env_overrides that has no Privometry hook), untrusted_hook
+	// (the agent has not approved the hook), or unknown. sensor_stopped: killed
+	// (no stop marker) or stopped (a graceful stop).
+	Reason IntegrityReason `json:"reason,omitempty"`
+
+	// sensor_stopped: how long privometryd was down.
+	DownSeconds *int64 `json:"down_seconds,omitempty"`
+
+	// sensor_stopped: how many decisions privometry-hook made with its fail modes
+	// while privometryd was down: the evidence that agents were used while it was
+	// off.
+	ActionsWhileDown *int64                `json:"actions_while_down,omitempty"`
+	AgentProduct     contract.AgentProduct `json:"agent_product,omitempty"`
+	Tier             contract.ConfigTier   `json:"tier,omitempty"`
+	Path             string                `json:"path,omitempty"`
 
 	// Lowercase hex SHA-256 digest with an algorithm prefix.
 	ExpectedSHA256 string `json:"expected_sha256,omitempty"`
@@ -361,6 +385,16 @@ type Integrity struct {
 }
 
 // IntegrityCheck is generated from event-schema/v1/event.schema.json#/$defs/integrity/properties/check.
+//
+// hooks_bypassed: a running agent was started with a flag from its adapter's
+// detect.bypass_flags, which skips its permission prompts or its hooks; detail
+// names the flag, never the command line. hooks_disabled: a config file turns
+// the agent's hooks off (adapter hooks.disable_settings) or turns Privometry's
+// own entry off. hooks_silent: an agent has run for minutes and its hooks never
+// called Privometry; reason says why when it is known. sensor_stopped:
+// privometryd was down for more than five minutes outside a shutdown or reboot
+// (down_seconds, actions_while_down). sensor_uninstalled: privometry daemon
+// uninstall removed the sensor.
 type IntegrityCheck string
 
 // Values of IntegrityCheck.
@@ -370,7 +404,31 @@ const (
 	IntegrityCheckConfigHashMismatch   IntegrityCheck = "config_hash_mismatch"
 	IntegrityCheckSensorBinaryModified IntegrityCheck = "sensor_binary_modified"
 	IntegrityCheckSequenceGap          IntegrityCheck = "sequence_gap"
+	IntegrityCheckHooksBypassed        IntegrityCheck = "hooks_bypassed"
+	IntegrityCheckHooksDisabled        IntegrityCheck = "hooks_disabled"
+	IntegrityCheckHooksSilent          IntegrityCheck = "hooks_silent"
+	IntegrityCheckSensorStopped        IntegrityCheck = "sensor_stopped"
+	IntegrityCheckSensorUninstalled    IntegrityCheck = "sensor_uninstalled"
 	IntegrityCheckOther                IntegrityCheck = "other"
+)
+
+// IntegrityReason is generated from event-schema/v1/event.schema.json#/$defs/integrity/properties/reason.
+//
+// Why the check fired, when it can be known. hooks_silent: setting (a setting
+// turns hooks off), config_dir_override (the agent runs with a config folder
+// from one of its env_overrides that has no Privometry hook), untrusted_hook
+// (the agent has not approved the hook), or unknown. sensor_stopped: killed (no
+// stop marker) or stopped (a graceful stop).
+type IntegrityReason string
+
+// Values of IntegrityReason.
+const (
+	IntegrityReasonSetting           IntegrityReason = "setting"
+	IntegrityReasonConfigDirOverride IntegrityReason = "config_dir_override"
+	IntegrityReasonUntrustedHook     IntegrityReason = "untrusted_hook"
+	IntegrityReasonKilled            IntegrityReason = "killed"
+	IntegrityReasonStopped           IntegrityReason = "stopped"
+	IntegrityReasonUnknown           IntegrityReason = "unknown"
 )
 
 // FailMode is generated from event-schema/v1/event.schema.json#/$defs/fail_mode.
@@ -436,7 +494,16 @@ type InventoryItem struct {
 	Tier         contract.ConfigTier       `json:"tier,omitempty"`
 	PathClass    contract.PathClass        `json:"path_class,omitempty"`
 	MCPTransport InventoryItemMCPTransport `json:"mcp_transport,omitempty"`
-	Posture      *InventoryItemPosture     `json:"posture,omitempty"`
+
+	// For MCP servers: the package the server runs, such as
+	// @modelcontextprotocol/server-github, without a version. Organization
+	// catalogs match on it.
+	Package string `json:"package,omitempty"`
+
+	// For HTTP MCP servers: the host of the server's URL, without credentials,
+	// path or query.
+	Host    string                `json:"host,omitempty"`
+	Posture *InventoryItemPosture `json:"posture,omitempty"`
 }
 
 // InventoryItemKind is generated from event-schema/v1/event.schema.json#/$defs/inventory/properties/item/properties/kind.
@@ -503,8 +570,11 @@ type ContentFinding struct {
 	SecretType string                  `json:"secret_type,omitempty"`
 	Location   *ContentFindingLocation `json:"location,omitempty"`
 
-	// Credentials only: salted hash of the secret, to spot the same secret on
-	// several devices.
+	// Credentials only: HMAC-SHA256 of the secret. On an enrolled device the key
+	// is the organization's hash key, so the same secret has the same fingerprint
+	// on every device of the organization and the platform can track it across
+	// devices (PRD SCAN-15); otherwise it is a key that never leaves the device,
+	// and such fingerprints are not uploaded.
 	Fingerprint string                    `json:"fingerprint,omitempty"`
 	ActionTaken ContentFindingActionTaken `json:"action_taken"`
 }

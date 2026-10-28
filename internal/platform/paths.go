@@ -2,8 +2,11 @@
 package platform
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"os"
+	"os/user"
 	"runtime"
 	"strings"
 )
@@ -16,13 +19,40 @@ type Env struct {
 	Getenv func(string) string
 }
 
-// CurrentEnv describes the running process.
+// CurrentEnv describes the running process. Some agents run hooks with a
+// trimmed environment (Antigravity passes only allowed variables), so the
+// home folder, and on Windows LOCALAPPDATA and USERNAME, fall back to the
+// account database when the variables are missing.
 func CurrentEnv() (Env, error) {
 	home, err := os.UserHomeDir()
+	var u *user.User
 	if err != nil {
-		return Env{}, err
+		if u, _ = user.Current(); u == nil || u.HomeDir == "" {
+			return Env{}, err
+		}
+		home = u.HomeDir
 	}
-	return Env{GOOS: runtime.GOOS, Home: home, Getenv: os.Getenv}, nil
+	getenv := os.Getenv
+	if runtime.GOOS == "windows" {
+		getenv = func(k string) string {
+			if v := os.Getenv(k); v != "" {
+				return v
+			}
+			switch k {
+			case "LOCALAPPDATA":
+				return home + `\AppData\Local`
+			case "USERNAME":
+				if u == nil {
+					u, _ = user.Current()
+				}
+				if u != nil {
+					return u.Username[strings.LastIndex(u.Username, `\`)+1:] // DOMAIN\name
+				}
+			}
+			return ""
+		}
+	}
+	return Env{GOOS: runtime.GOOS, Home: home, Getenv: getenv}, nil
 }
 
 // OS returns the event-schema name of the operating system: macos, linux, windows or other.
@@ -49,6 +79,9 @@ func (e Env) join(parts ...string) string {
 	out := strings.TrimRight(parts[0], `/\`)
 	for _, p := range parts[1:] {
 		out += s + strings.Trim(p, `/\`)
+	}
+	if e.GOOS == "windows" {
+		out = strings.ReplaceAll(out, "/", `\`) // adapter definitions may write ~/.claude/settings.json
 	}
 	return out
 }
@@ -83,14 +116,21 @@ func (e Env) DBPath() (string, error) {
 }
 
 // IPCAddress is the daemon endpoint: a Unix socket in the data dir, or a
-// per-user named pipe on Windows.
+// per-user named pipe on Windows. Pipes share one namespace, so with
+// PRIVOMETRY_HOME set the pipe name carries a hash of that folder and a
+// side-by-side daemon does not collide with the installed one.
 func (e Env) IPCAddress() (string, error) {
 	if e.GOOS == "windows" {
 		user := e.Getenv("USERNAME")
 		if user == "" {
 			return "", errors.New("platform: USERNAME is not set")
 		}
-		return `\\.\pipe\privometry-` + user, nil
+		name := `\\.\pipe\privometry-` + user
+		if dir := e.Getenv("PRIVOMETRY_HOME"); dir != "" {
+			sum := sha256.Sum256([]byte(strings.ToLower(strings.TrimRight(dir, `/\`))))
+			name += "-" + hex.EncodeToString(sum[:4])
+		}
+		return name, nil
 	}
 	dir, err := e.DataDir()
 	if err != nil {
@@ -146,4 +186,48 @@ func (e Env) homeOrErr() (string, error) {
 		return "", errors.New("platform: home directory is unknown")
 	}
 	return e.Home, nil
+}
+
+// DisplayPath is the path form reports and allowlists use: relative to
+// repoRoot for files in the repo, ~/... for files in the home folder, and
+// unchanged otherwise. Relative forms use forward slashes on Windows too, so
+// they match the patterns in policy files.
+func DisplayPath(p, home, repoRoot string) string {
+	if rel, ok := under(p, repoRoot); ok {
+		if rel == "" {
+			return "."
+		}
+		return rel
+	}
+	if rel, ok := under(p, home); ok {
+		if rel == "" {
+			return "~"
+		}
+		return "~/" + rel
+	}
+	return p
+}
+
+// Under returns p relative to dir when p is dir ("") or inside it. A
+// Windows path (separated by backslashes) comes back with forward slashes.
+func Under(p, dir string) (string, bool) { return under(p, dir) }
+
+func under(p, dir string) (string, bool) {
+	if dir == "" {
+		return "", false
+	}
+	if p == dir {
+		return "", true
+	}
+	dir = strings.TrimRight(dir, `/\`)
+	if len(p) <= len(dir)+1 || p[:len(dir)] != dir {
+		return "", false
+	}
+	switch p[len(dir)] {
+	case '/':
+		return p[len(dir)+1:], true
+	case '\\':
+		return strings.ReplaceAll(p[len(dir)+1:], `\`, "/"), true
+	}
+	return "", false
 }

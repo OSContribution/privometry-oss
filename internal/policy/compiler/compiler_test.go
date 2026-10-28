@@ -228,3 +228,23 @@ func equal(a, b []string) bool {
 	}
 	return true
 }
+
+// TestCompileVectorsAreCurrent keeps specs/conformance/policy-compile in step
+// with this compiler: the Java compiler is held to those files byte for byte.
+// Regenerate them with go run ./scripts/gen-conformance.
+func TestCompileVectorsAreCurrent(t *testing.T) {
+	files, _ := filepath.Glob(filepath.Join(specsDir, "policy/v1/examples/valid/*.yaml"))
+	if len(files) == 0 {
+		t.Fatal("no policy examples")
+	}
+	for _, f := range files {
+		out := compile(t, loadPolicy(t, f), "org")
+		name := strings.TrimSuffix(filepath.Base(f), ".yaml")
+		for file, want := range map[string]string{name + ".cedar": out.Enforce, name + ".monitor.cedar": out.Monitor} {
+			got, err := os.ReadFile(filepath.Join(specsDir, "conformance/policy-compile", file))
+			if err != nil || string(got) != want {
+				t.Errorf("conformance/policy-compile/%s is stale (%v); run go run ./scripts/gen-conformance", file, err)
+			}
+		}
+	}
+}

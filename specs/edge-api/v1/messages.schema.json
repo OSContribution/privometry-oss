@@ -12,7 +12,7 @@
       "type": "object",
       "required": ["enrollment_token", "csr", "device"],
       "properties": {
-        "enrollment_token": { "type": "string", "minLength": 20, "maxLength": 512, "description": "One-time token from the console, privometry login, or MDM." },
+        "enrollment_token": { "type": "string", "minLength": 20, "maxLength": 512, "description": "One-time token from the console or MDM, or from account-api/v1 when privometry login registers a person (POST /registrations/{registration_id}:complete); that token is bound to the person and valid 10 minutes." },
         "csr": { "$ref": "#/$defs/pem_csr", "description": "PKCS#10 request for an Ed25519 or P-256 key generated on the device; the private key never leaves it." },
         "device": {
           "type": "object",
@@ -33,7 +33,7 @@
       "properties": {
         "device_id": { "$ref": "../../common/v1/common.schema.json#/$defs/device_id" },
         "org_id": { "$ref": "../../common/v1/common.schema.json#/$defs/org_id" },
-        "user_id": { "$ref": "../../common/v1/common.schema.json#/$defs/user_id", "description": "Set when the token is bound to a person." },
+        "user_id": { "$ref": "../../common/v1/common.schema.json#/$defs/user_id", "description": "Set when the token is bound to a person, as tokens from account registration always are." },
         "region": { "type": "string", "pattern": "^[a-z]{2,8}$" },
         "api_base_url": { "$ref": "../../common/v1/common.schema.json#/$defs/https_url" },
         "certificate": { "$ref": "#/$defs/pem_chain" },
@@ -46,6 +46,13 @@
             "id": { "type": "string", "pattern": "^hk_[0-9A-HJKMNP-TV-Z]{26}$" },
             "key": { "type": "string", "pattern": "^[A-Za-z0-9+/]{43}=$", "description": "32 random bytes, base64." }
           }
+        },
+        "key_set": {
+          "allOf": [
+            { "$ref": "../../common/v1/dsse.schema.json" },
+            { "properties": { "payloadType": { "const": "application/vnd.privometry.keyset+json" } } }
+          ],
+          "description": "The region's key set (common/v1 keyset.schema.json) signed by a root key: the policy and license keys the device verifies bundles and entitlements with. A sensor with root keys built in verifies it against them; one without pins it at enrollment, after checking it is signed by a root key it lists."
         }
       }
     },
@@ -140,7 +147,7 @@
               "agent_product": { "$ref": "../../common/v1/common.schema.json#/$defs/agent_product" },
               "agent_version": { "type": "string", "maxLength": 64 },
               "tier": { "$ref": "../../common/v1/common.schema.json#/$defs/config_tier" },
-              "status": { "enum": ["installed", "missing", "modified", "untrusted", "unsupported"], "description": "untrusted: installed but the agent has not approved it yet (Codex hook trust)." }
+              "status": { "enum": ["installed", "missing", "modified", "untrusted", "disabled", "unsupported"], "description": "untrusted: installed but the agent has not approved it yet (Codex hook trust). disabled: installed, but a setting turns the agent's hooks off or Privometry's own entry is turned off (adapter hooks.disable_settings)." }
             }
           }
         },

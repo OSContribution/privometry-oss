@@ -18,7 +18,8 @@ func TestShippedDefinitionsLoad(t *testing.T) {
 	for _, a := range r.All() {
 		got = append(got, a.Agent)
 	}
-	want := []contract.AgentProduct{contract.AgentProductClaudeCode, contract.AgentProductCodexCLI, contract.AgentProductCursor}
+	want := []contract.AgentProduct{contract.AgentProductAntigravity, contract.AgentProductClaudeCode, contract.AgentProductCodexCLI,
+		contract.AgentProductCopilotCLI, contract.AgentProductCursor, contract.AgentProductGeminiCLI}
 	if len(got) != len(want) {
 		t.Fatalf("agents %v, want %v", got, want)
 	}
@@ -119,5 +120,25 @@ func TestLookups(t *testing.T) {
 	}
 	if e, ok := claude.Event("PreToolUse"); !ok || e.Role != registry.HookEventRolePreTool {
 		t.Errorf("Event(PreToolUse) = %+v", e)
+	}
+	gemini, _ := r.Get(contract.AgentProductGeminiCLI)
+	if s, tool, ok := gemini.MCPTool("mcp_github_list_issues"); !ok || s != "github" || tool != "list_issues" {
+		t.Errorf("gemini MCPTool = %q %q %v", s, tool, ok)
+	}
+	if tool, ok := gemini.MCPToolOf("mcp_my_server_list_files", "my_server"); !ok || tool != "list_files" {
+		t.Errorf("gemini MCPToolOf = %q %v", tool, ok)
+	}
+	if _, ok := gemini.MCPToolOf("mcp_other_list_files", "my_server"); ok {
+		t.Error("MCPToolOf must not split a name for another server")
+	}
+	agy, _ := r.Get(contract.AgentProductAntigravity)
+	if tt, ok := agy.ToolTarget("run_command"); !ok || tt.Command != "/CommandLine" || agy.ToolKind("browser_click") != "other" {
+		t.Errorf("antigravity targets %+v", tt)
+	}
+	copilot, _ := r.Get(contract.AgentProductCopilotCLI)
+	for tool, want := range map[string]string{"bash": "shell_exec", "create": "file_write", "view": "file_read", "some-mcp-tool": "other"} {
+		if got := copilot.ToolKind(tool); got != want {
+			t.Errorf("copilot ToolKind(%s) = %s, want %s", tool, got, want)
+		}
 	}
 }

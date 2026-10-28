@@ -16,6 +16,7 @@ The `specs/` tree is the language-neutral compatibility boundary between the Go 
 | `entitlements/v1` | Signed entitlements and offline license files |
 | `release/v1` | Signed self-update manifests |
 | `edge-api/v1` | OpenAPI and message schemas for edge/platform communication |
+| `account-api/v1` | OpenAPI and message schemas for registration (a CLI sign-in key or a passkey, PIN on the device) and console sign-in |
 
 ## Source-of-truth rules
 

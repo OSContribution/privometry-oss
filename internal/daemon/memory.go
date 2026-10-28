@@ -12,6 +12,7 @@ import (
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/content"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/contract"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/events"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/platform"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/policy/intent"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/timeline"
 )
@@ -48,6 +49,23 @@ func (d *Daemon) noteRoot(root string) {
 	d.mu.Unlock()
 }
 
+// recentRoots returns the workspaces agents worked in recently, sorted, and
+// forgets older ones.
+func (d *Daemon) recentRoots() []string {
+	d.mu.Lock()
+	var roots []string
+	for r, at := range d.roots {
+		if d.cfg.Now().Sub(at) < rootTTL {
+			roots = append(roots, r)
+		} else {
+			delete(d.roots, r)
+		}
+	}
+	d.mu.Unlock()
+	sort.Strings(roots)
+	return roots
+}
+
 // noteAgentWrite records that an agent is about to write a memory file.
 func (d *Daemon) noteAgentWrite(path string) {
 	d.mu.Lock()
@@ -72,18 +90,7 @@ func (d *Daemon) noteMemoryWrites(actions []intent.Action, ctx intent.Context) {
 // Nested project files (a CLAUDE.md in a subfolder) are checked when an
 // agent writes them, not by the watcher.
 func (d *Daemon) memoryList() []memoryFile {
-	d.mu.Lock()
-	var roots []string
-	for r, at := range d.roots {
-		if d.cfg.Now().Sub(at) < rootTTL {
-			roots = append(roots, r)
-		} else {
-			delete(d.roots, r)
-		}
-	}
-	d.mu.Unlock()
-	sort.Strings(roots)
-
+	roots := d.recentRoots()
 	var out []memoryFile
 	seen := map[string]bool{}
 	for _, a := range d.cfg.Registry.All() {
@@ -121,6 +128,8 @@ func (d *Daemon) memoryList() []memoryFile {
 // detector packs apply without waiting for an edit. It returns how many events
 // it recorded.
 func (d *Daemon) CheckMemory() (int, error) {
+	d.memMu.Lock()
+	defer d.memMu.Unlock()
 	prev, err := d.store.ConfigHashes()
 	if err != nil {
 		return 0, err
@@ -181,6 +190,7 @@ func (d *Daemon) checkMemoryFile(m memoryFile, old timeline.ConfigHash, known bo
 	n := 0
 	h := timeline.ConfigHash{Path: m.path, Tier: string(m.tier), Agent: string(m.agent.Agent), SHA256: sum,
 		Kind: "memory", ChangedBy: old.ChangedBy}
+	snapshotAs := ""
 	if known && !unchanged {
 		if by == "" {
 			by = d.attribute(m.path)
@@ -190,12 +200,23 @@ func (d *Daemon) checkMemoryFile(m memoryFile, old timeline.ConfigHash, known bo
 			return n, err
 		}
 		n++
+		snapshotAs = string(by)
+	} else if !known && sum != "" {
+		snapshotAs = changedFirst
 	}
 	if err := d.store.SetConfigHash(h, now); err != nil {
 		return n, err
 	}
+	findings := 0
 	if sum != "" {
-		n += d.scanAtRest(m, raw)
+		findings = d.scanAtRest(m, raw)
+		n += findings
+	}
+	if snapshotAs != "" {
+		if sum == "" {
+			raw = nil
+		}
+		d.snapshot(m, raw, sum, snapshotAs, findings, 0)
 	}
 	return n, nil
 }
@@ -230,6 +251,11 @@ func (d *Daemon) scanAtRest(m memoryFile, raw []byte) int {
 		text = text[:maxMemoryScan]
 	}
 	fs := d.content.Scan(content.SourceMemoryFile, text)
+	repo := ""
+	if m.tier == contract.ConfigTierProject {
+		repo = platform.GitRoot(filepath.Dir(m.path))
+	}
+	fs, _ = d.allowlistFor(repo).Filter(fs, text, platform.DisplayPath(m.path, d.cfg.Env.Home, repo), d.cfg.Now())
 	class, _ := (intent.Context{Home: d.cfg.Env.Home}).Classify(m.path)
 	n := 0
 	for i, f := range fs {
@@ -248,7 +274,7 @@ func (d *Daemon) scanAtRest(m memoryFile, raw []byte) int {
 		ev := &events.Event{Schema: events.EventSchema, EventID: contract.NewID("evt"), Type: events.EventTypeContentFinding,
 			OccurredAt: contract.At(d.cfg.Now()), Device: d.device, User: events.User{LocalUser: localUser()}, ContentFinding: cf,
 			Redaction: map[string]contract.PrivacyLevel{"user.local_user": contract.PrivacyLevelClear},
-			Ext:       map[string]any{"x_privometry_title": f.Title}}
+			Ext:       findingExt(f)}
 		if err := d.appendEvent(ev, fmt.Sprintf("%s:%d  %s", m.path, f.Line, f.Excerpt)); err != nil {
 			d.cfg.Logger.Warn("could not record content finding", "err", err)
 			continue
@@ -271,6 +297,8 @@ func (d *Daemon) memoryWritten(c call, path string) {
 		}
 	}
 	d.background(func() {
+		d.memMu.Lock()
+		defer d.memMu.Unlock()
 		prev, err := d.store.ConfigHashes()
 		if err != nil {
 			return
@@ -331,6 +359,8 @@ func (d *Daemon) instructionsLoaded(c call) error {
 		kind = registry.AdapterMemoryFileKindRules
 	}
 	m := memoryFile{agent: c.adapter, path: p, tier: tier, kind: kind}
+	d.memMu.Lock()
+	defer d.memMu.Unlock()
 	prev, err := d.store.ConfigHashes()
 	if err != nil {
 		return err

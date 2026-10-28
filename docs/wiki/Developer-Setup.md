@@ -41,6 +41,7 @@ Some tests open Unix and TCP loopback sockets or exercise launchd/systemd plans.
 | `make tidy` | Update module requirements |
 | `make generate` | Regenerate Go contract types and signed vectors |
 | `make check-generated` | Fail when generated Go types are stale |
+| `make definitions` | Build the adapter and detector pack sets in `dist/`; `KEY=... NAME=...` signs them |
 | `make hook-recorder` | Build the development-only hook payload recorder |
 | `make clean` | Remove `bin/` and `dist/` |
 

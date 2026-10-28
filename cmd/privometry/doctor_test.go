@@ -62,6 +62,7 @@ func TestDoctorAndBundle(t *testing.T) {
 	os.WriteFile(filepath.Join(home, ".privometry", "policy.yaml"), []byte("schema: privometry.policy/v1\nname: mine\nrules:\n  - id: allow-ls\n    when: { action: shell_exec, program: ls }\n    verdict: allow\n"), 0o600)
 
 	out := filepath.Join(t.TempDir(), "b.zip")
+	t.Chdir(t.TempDir()) // outside any repo: this one's own .privometry/policy.yaml would add a repo layer
 	var stdout, stderr bytes.Buffer
 	code := run([]string{"doctor", "--no-probe", "--bundle", "--output", out}, &stdout, &stderr)
 	if code != 1 {

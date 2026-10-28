@@ -85,3 +85,23 @@ func TestSecretsKeepsPaths(t *testing.T) {
 		t.Errorf("Secrets: %q", got)
 	}
 }
+
+func TestWindowsPaths(t *testing.T) {
+	ctx := redact.Context{Home: `C:\Users\dev`, RepoRoot: `C:\Users\dev\work\api`}
+	for in, want := range map[string]string{
+		`type C:\Users\dev\work\api\src\main.go`:     `type <repo>\src\main.go`,
+		`del C:\Users\dev\Downloads\old.zip`:         `del ~/<redacted_path>`,
+		`dir C:\Users\dev`:                           `dir ~`,
+		`type C:\Users\sam\.ssh\id_ed25519`:          `type C:\Users\<user>\.ssh\id_ed25519`,
+		`type c:\users\sam\notes.txt`:                `type c:\users\<user>\notes.txt`,
+		`dir C:\Users\devops\notes`:                  `dir C:\Users\<user>\notes`,
+		`type C:\Windows\System32\drivers\etc\hosts`: `type C:\Windows\System32\drivers\etc\hosts`,
+	} {
+		if got := redact.Redact(in, ctx); got != want {
+			t.Errorf("Redact(%q) = %q, want %q", in, got, want)
+		}
+	}
+	if got := redact.Secrets(`log at C:\Users\dev\AppData\Local\Privometry and C:\Users\sam\x`, `C:\Users\dev`); got != `log at ~\AppData\Local\Privometry and C:\Users\<user>\x` {
+		t.Errorf("Secrets: %q", got)
+	}
+}

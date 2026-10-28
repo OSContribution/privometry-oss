@@ -21,13 +21,17 @@ Before persistence or upload, the edge applies redaction and normalization. Loca
 
 ## Local storage
 
-The default data directory is `~/.privometry` on macOS/Linux and `%LOCALAPPDATA%\Privometry` on Windows. Directories must be owned by the current user with no group/other permissions; files are private. Symlinks and foreign-owned locations are rejected.
+The default data directory is `~/.privometry` on macOS/Linux and `%LOCALAPPDATA%\Privometry` on Windows. Directories must be owned by the current user with no group/other permissions (on Windows, an access list granting only the user, SYSTEM and Administrators); files are private. Symlinks and foreign-owned locations are rejected.
 
 SQLite contains the redacted timeline. Fail-mode and spool files may still reveal that an operation occurred and must be treated as sensitive operational data.
 
 ## IPC
 
-The daemon uses a per-user Unix socket on macOS/Linux and a per-user named-pipe design on Windows. Requests are versioned and size-bounded. The socket directory and socket permissions are verified. IPC is local transport, not an authorization substitute; callers and payloads remain untrusted.
+The daemon uses a per-user Unix socket on macOS/Linux and a per-user named pipe on Windows. Requests are versioned and size-bounded. The socket directory and socket permissions are verified; the pipe admits only the user, refuses remote clients, and clients refuse a pipe another account owns. IPC is local transport, not an authorization substitute; callers and payloads remain untrusted.
+
+## Community packs
+
+Rule and detector packs from other publishers are trusted per publisher key, by the person, with `privometry trust add` (which shows the key's fingerprint). A key signs packs only under its own publisher name, the `privometry` publisher is reserved for the release key, and every pack is verified again whenever it loads, so removing a key stops its packs at the next load. Rule packs only apply where a policy extends them. See `docs/community-packs.md`.
 
 ## Artifact trust
 

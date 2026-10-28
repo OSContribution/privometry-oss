@@ -1,5 +1,19 @@
 # policy/v1
 
+## 1.0.0-draft.5 (2026-10-28)
+
+- Bundles gain `approvals` (optional): `enabled`, `route` (`unattended` or `all`) and `timeout_seconds`, which tell devices which asks to send for remote approval in Slack or Teams (PRD CP-21; privometry-oss `docs/spikes/remote-approvals.md`).
+## 1.0.0-draft.4 (2026-10-28)
+
+- Bundles, clarified for the first policy service (privometry-platform M3): `sources` holds the organization layer's policy files (layer `org`, the policy name, its version), and each device merges them with its built-in packs and local policies (`internal/policy/merge`), so packs, overrides and exceptions resolve the same way on every device. `cedar_policies`, `cedar_monitor_policies` and `rules` are the organization layer's own rules as the service compiled and validated them before signing; the device does not evaluate them directly.
+- `specs/conformance/policy-compile`: the Cedar the Go compiler makes from each valid example as the organization layer, which the Java compiler must reproduce byte for byte.
+## 1.0.0-draft.3 (2026-10-24)
+
+- `allowlist`: content findings people have checked and accept (PRD SCAN-09). Each entry lists `detectors` (qualified IDs or `<pack>:*`), narrows them by `paths` (globs), `values` (exact matched text) or both, and has a `reason` and an optional `expires_at`. An entry without paths or values is invalid, so an allowlist never turns a detector off everywhere.
+- Paths match repo-relative paths for files in the repo and `~/...` for files in the home folder, and apply only to files (at rest and written), never to commands, URLs or MCP arguments.
+- The edge drops allowlisted findings before they become facts; rules are unchanged. Organization allowlists arrive with policy bundles.
+- Examples: `repo-allowlist.yaml` and 4 invalid allowlists.
+
 ## 1.0.0-draft.2 (2026-10-23)
 
 - Content-scanning facts from Contracts v1, set by the Go detectors before each decision:

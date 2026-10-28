@@ -14,8 +14,11 @@ coverage.out
 go.work
 go.work.sum
 
-# Privometry runtime state
-.privometry/
+# Privometry runtime state from local runs; the repo policy in the root
+# .privometry/ folder is committed
+**/.privometry/*
+!/.privometry/policy.yaml
+!/.privometry/tests/
 *.db
 *.db-shm
 *.db-wal

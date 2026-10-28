@@ -22,6 +22,14 @@ func TestPolicyTest(t *testing.T) {
 	if err := os.WriteFile(invalid, []byte("schema: privometry.policy/v1\nname: x\nrules:\n  - id: r\n    when: { programme: rm }\n    verdict: deny\n    message: no\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	allow := func(id string) string {
+		f := filepath.Join(t.TempDir(), "policy.yaml")
+		body := "schema: privometry.policy/v1\nname: x\nallowlist:\n  - detectors: [" + id + "]\n    paths: [test/*]\n    reason: fake keys\n"
+		if err := os.WriteFile(f, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return f
+	}
 
 	cases := []struct {
 		name string
@@ -33,6 +41,8 @@ func TestPolicyTest(t *testing.T) {
 		{"example policy passes", []string{"test", "../../policies/examples/web-app/policy.yaml"}, 0, "PASS policy web-app"},
 		{"missing exception fails", []string{"test", filepath.Join(broken, "policy.yaml")}, 1, "want ask []"},
 		{"schema error fails", []string{"test", invalid}, 1, "programme"},
+		{"allowlist passes", []string{"test", allow("privometry/credentials:*")}, 0, "note: 1 content allowlist entries"},
+		{"allowlist with an unknown detector fails", []string{"test", allow("privometry/credentials:aws-key")}, 1, "no detector privometry/credentials:aws-key"},
 		{"explain a command", []string{"test", "--command", "cd ~ && rm -rf old"}, 0, "Verdict: deny (policy)"},
 		{"explain a read", []string{"test", "--read", "/tmp/x/.env.local"}, 0, "privometry/secrets:read-env-file"},
 		{"explain with an extra policy", []string{"test", "--command", "git push -f", "../../policies/examples/web-app/policy.yaml"}, 0, "Verdict: deny"},

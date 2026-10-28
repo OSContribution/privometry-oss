@@ -11,8 +11,10 @@ import (
 
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/adapters/registry"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/cloud"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/cloud/account"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/cloud/bundles"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/cloud/entitlements"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/cloud/orgapi"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/content"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/contract"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/events"
@@ -45,6 +47,7 @@ var targets = []target{
 	{"specs/release/v1/examples/valid/*", "release/v1/release.schema.json", func() any { return new(update.Release) }},
 	{"specs/detectorpack/v1/examples/pack/valid/*", "detectorpack/v1/pack.schema.json", func() any { return new(content.Manifest) }},
 	{"specs/detectorpack/v1/examples/detectors/valid/*", "detectorpack/v1/detectors.schema.json", func() any { return new(content.DetectorsFile) }},
+	{"specs/detectorpack/v1/examples/pack-set/valid/*", "detectorpack/v1/pack-set.schema.json", func() any { return new(content.PackSet) }},
 	{"specs/rulepack/v1/examples/pack/valid/*", "rulepack/v1/pack.schema.json", func() any { return new(rulepack.Manifest) }},
 	{"specs/rulepack/v1/examples/ruletest/valid/*", "rulepack/v1/ruletest.schema.json", func() any { return new(rulepack.TestFile) }},
 	{"rulepacks/*/pack.yaml", "rulepack/v1/pack.schema.json", func() any { return new(rulepack.Manifest) }},
@@ -62,16 +65,85 @@ var messages = map[string]func() any{
 	"Approval": func() any { return new(cloud.Approval) }, "Problem": func() any { return new(cloud.Problem) },
 }
 
+// accountMessages maps each account API example folder to its generated type.
+var accountMessages = map[string]func() any{
+	"RegionList": func() any { return new(account.RegionList) }, "OrgLocation": func() any { return new(account.OrgLocation) },
+	"RegistrationStart": func() any { return new(account.RegistrationStart) }, "Registration": func() any { return new(account.Registration) },
+	"RegistrationVerify":    func() any { return new(account.RegistrationVerify) },
+	"RegistrationChallenge": func() any { return new(account.RegistrationChallenge) },
+	"RegistrationComplete":  func() any { return new(account.RegistrationComplete) },
+	"RegistrationResult":    func() any { return new(account.RegistrationResult) },
+	"AccountProof":          func() any { return new(account.AccountProof) }, "Proof": func() any { return new(account.Proof) },
+	"SignInChallengeRequest": func() any { return new(account.SignInChallengeRequest) },
+	"SignInChallenge":        func() any { return new(account.SignInChallenge) },
+	"SignInRequest":          func() any { return new(account.SignInRequest) }, "SignInResult": func() any { return new(account.SignInResult) },
+	"SignInLinkRedeem": func() any { return new(account.SignInLinkRedeem) }, "Me": func() any { return new(account.Me) },
+	"CredentialList": func() any { return new(account.CredentialList) }, "InvitationCreate": func() any { return new(account.InvitationCreate) },
+	"Invitation":             func() any { return new(account.Invitation) },
+	"MemberResetRequest":     func() any { return new(account.MemberResetRequest) },
+	"MemberResetResult":      func() any { return new(account.MemberResetResult) },
+	"MemberList":             func() any { return new(account.MemberList) },
+	"ApiKeyCreate":           func() any { return new(account.APIKeyCreate) },
+	"ApiKey":                 func() any { return new(account.APIKey) },
+	"ApiKeyCreated":          func() any { return new(account.APIKeyCreated) },
+	"ApiKeyList":             func() any { return new(account.APIKeyList) },
+	"EnrollmentTokenCreate":  func() any { return new(account.EnrollmentTokenCreate) },
+	"EnrollmentToken":        func() any { return new(account.EnrollmentToken) },
+	"EnrollmentTokenCreated": func() any { return new(account.EnrollmentTokenCreated) },
+	"EnrollmentTokenList":    func() any { return new(account.EnrollmentTokenList) },
+	"DeviceList":             func() any { return new(account.DeviceList) },
+}
+
+// orgMessages maps each organization API example folder to its generated type.
+var orgMessages = map[string]func() any{
+	"PolicyCreate": func() any { return new(orgapi.PolicyCreate) }, "PolicyVersionCreate": func() any { return new(orgapi.PolicyVersionCreate) },
+	"PolicyRollback": func() any { return new(orgapi.PolicyRollback) }, "PolicyCheck": func() any { return new(orgapi.PolicyCheck) },
+	"PolicyCheckResult": func() any { return new(orgapi.PolicyCheckResult) }, "Policy": func() any { return new(orgapi.Policy) },
+	"PolicyList": func() any { return new(orgapi.PolicyList) }, "PolicyVersion": func() any { return new(orgapi.PolicyVersion) },
+	"PolicyVersionList": func() any { return new(orgapi.PolicyVersionList) }, "PolicyDiff": func() any { return new(orgapi.PolicyDiff) },
+	"BundlePublish": func() any { return new(orgapi.BundlePublish) }, "BundleInfo": func() any { return new(orgapi.BundleInfo) },
+	"BundleList": func() any { return new(orgapi.BundleList) }, "EventPage": func() any { return new(orgapi.EventPage) },
+	"CatalogEntryCreate": func() any { return new(orgapi.CatalogEntryCreate) }, "CatalogEntry": func() any { return new(orgapi.CatalogEntry) },
+	"CatalogEntryList": func() any { return new(orgapi.CatalogEntryList) }, "ComponentList": func() any { return new(orgapi.ComponentList) },
+	"AgentInstanceList": func() any { return new(orgapi.AgentInstanceList) },
+	"FindingList":       func() any { return new(orgapi.FindingList) }, "FindingTriage": func() any { return new(orgapi.FindingTriage) },
+	"IntegrationCreate": func() any { return new(orgapi.IntegrationCreate) }, "IntegrationCreated": func() any { return new(orgapi.IntegrationCreated) },
+	"IntegrationList":  func() any { return new(orgapi.IntegrationList) },
+	"ApprovalSettings": func() any { return new(orgapi.ApprovalSettings) }, "ApprovalList": func() any { return new(orgapi.ApprovalList) },
+	"ApprovalDecision":       func() any { return new(orgapi.ApprovalDecision) },
+	"WebhookCreate":          func() any { return new(orgapi.WebhookCreate) },
+	"WebhookUpdate":          func() any { return new(orgapi.WebhookUpdate) },
+	"WebhookSecretRotate":    func() any { return new(orgapi.WebhookSecretRotate) },
+	"WebhookCreated":         func() any { return new(orgapi.WebhookCreated) },
+	"WebhookList":            func() any { return new(orgapi.WebhookList) },
+	"WebhookDelivery":        func() any { return new(orgapi.WebhookDelivery) },
+	"WebhookDeliveryList":    func() any { return new(orgapi.WebhookDeliveryList) },
+	"WebhookEvent":           func() any { return new(orgapi.WebhookEvent) },
+	"OrgOverview":            func() any { return new(orgapi.OrgOverview) },
+	"License":                func() any { return new(orgapi.License) },
+	"LicenseEventList":       func() any { return new(orgapi.LicenseEventList) },
+	"BillingCheckout":        func() any { return new(orgapi.BillingCheckout) },
+	"BillingCheckoutStarted": func() any { return new(orgapi.BillingCheckoutStarted) },
+	"BillingSeats":           func() any { return new(orgapi.BillingSeats) },
+	"InvoiceList":            func() any { return new(orgapi.InvoiceList) },
+	"InvoiceDownload":        func() any { return new(orgapi.InvoiceDownload) },
+	"CredentialList":         func() any { return new(orgapi.CredentialList) },
+	"CredentialDetail":       func() any { return new(orgapi.CredentialDetail) },
+	"CredentialMark":         func() any { return new(orgapi.CredentialMark) },
+}
+
 // TestRoundTrip decodes every valid example strictly into its generated type,
 // encodes it again, and requires the same document, still valid.
 func TestRoundTrip(t *testing.T) {
 	all := targets
-	for name, fn := range messages {
-		all = append(all, target{"specs/edge-api/v1/examples/" + name + "/valid/*", "edge-api/v1/messages.schema.json#/$defs/" + name, fn})
-	}
-	dirs, _ := filepath.Glob(filepath.Join(root, "specs/edge-api/v1/examples/*"))
-	if len(dirs) != len(messages) {
-		t.Errorf("%d message example folders, %d mapped types", len(dirs), len(messages))
+	for api, types := range map[string]map[string]func() any{"edge-api/v1": messages, "account-api/v1": accountMessages, "org-api/v1": orgMessages} {
+		for name, fn := range types {
+			all = append(all, target{"specs/" + api + "/examples/" + name + "/valid/*", api + "/messages.schema.json#/$defs/" + name, fn})
+		}
+		dirs, _ := filepath.Glob(filepath.Join(root, "specs", api, "examples/*"))
+		if len(dirs) != len(types) {
+			t.Errorf("%s: %d message example folders, %d mapped types", api, len(dirs), len(types))
+		}
 	}
 	for _, tg := range all {
 		files, _ := filepath.Glob(filepath.Join(root, tg.glob))

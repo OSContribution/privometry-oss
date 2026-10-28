@@ -12,11 +12,11 @@ Local protection does not depend on a cloud connection or a valid commercial lic
 - `privometry-mcp-shim`: reserved entry point for the planned local stdio MCP policy boundary; it is currently a placeholder.
 - Versioned JSON Schema, OpenAPI, Cedar, policy, rule-pack, detector-pack, and signed-artifact contracts under `specs/`.
 
-Supported adapter definitions currently ship for Claude Code, Codex, and Cursor. The data-driven adapter format allows additional agents to be added without changing the core policy engine.
+Supported adapter definitions currently ship for Claude Code, Codex, Cursor, Gemini CLI, Copilot CLI and Antigravity. The data-driven adapter format allows additional agents to be added without changing the core policy engine.
 
 ## Build from source
 
-Prerequisites: Go 1.25 or newer, Git, and a supported macOS or Linux development environment.
+Prerequisites: Go 1.25 or newer, Git, and macOS, Linux or Windows 10/11.
 
 ```sh
 git clone https://gitlab.com/cn-solutions/privometry/privometry-oss.git

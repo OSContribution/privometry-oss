@@ -30,8 +30,7 @@ func Load(fsys fs.FS) (*Registry, error) {
 	if err != nil {
 		return nil, err
 	}
-	r := &Registry{}
-	seen := map[contract.AgentProduct]string{}
+	var adapters []Adapter
 	for _, f := range files {
 		raw, err := fs.ReadFile(fsys, f)
 		if err != nil {
@@ -41,10 +40,21 @@ func Load(fsys fs.FS) (*Registry, error) {
 		if err := specs.DecodeInto("adapter/v1/adapter.schema.json", f, raw, &a); err != nil {
 			return nil, fmt.Errorf("registry: %w", err)
 		}
-		if prev, dup := seen[a.Agent]; dup {
-			return nil, fmt.Errorf("registry: %s and %s both define %s", prev, f, a.Agent)
+		adapters = append(adapters, a)
+	}
+	return New(adapters)
+}
+
+// New builds a registry from validated definitions, such as the adapters of
+// a signed adapter set. Two definitions of one agent are an error.
+func New(adapters []Adapter) (*Registry, error) {
+	r := &Registry{}
+	seen := map[contract.AgentProduct]bool{}
+	for _, a := range adapters {
+		if seen[a.Agent] {
+			return nil, fmt.Errorf("registry: %s is defined twice", a.Agent)
 		}
-		seen[a.Agent] = f
+		seen[a.Agent] = true
 		r.adapters = append(r.adapters, a)
 	}
 	sort.Slice(r.adapters, func(i, j int) bool { return r.adapters[i].Agent < r.adapters[j].Agent })

@@ -9,7 +9,7 @@ LDFLAGS   := -s -w \
 	-X $(PKG)/internal/buildinfo.Date=$(DATE)
 BINARIES  := privometry privometryd privometry-hook privometry-mcp-shim
 
-.PHONY: all build test race lint fmt tidy clean hook-recorder generate check-generated release-metadata
+.PHONY: all build test race lint fmt tidy clean hook-recorder generate check-generated release-metadata definitions
 
 all: lint test build
 
@@ -46,6 +46,11 @@ check-generated:
 # Deterministic CycloneDX SBOM and dependency-license policy report.
 release-metadata:
 	$(GO) run ./scripts/release-metadata -version '$(VERSION)'
+
+# Adapter and detector pack sets for a release, in dist/. KEY (a release key
+# seed file) and NAME sign them; without KEY the payloads are left unsigned.
+definitions:
+	$(GO) run ./scripts/sign-definitions -out dist $(if $(KEY),-key '$(KEY)' -name '$(NAME)')
 
 # Spike tool: logs raw hook payloads from real agents into test/fixtures.
 hook-recorder:

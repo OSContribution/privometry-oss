@@ -65,10 +65,14 @@ var outputs = []output{
 		{"rulepack/v1/ruletest.schema.json", "TestFile"},
 	}},
 	{"cloud", "internal/cloud", "messages.gen.go", []source{{"edge-api/v1/messages.schema.json", ""}}},
+	{"account", "internal/cloud/account", "messages.gen.go", []source{{"account-api/v1/messages.schema.json", ""}}},
+	{"orgapi", "internal/cloud/orgapi", "messages.gen.go", []source{{"org-api/v1/messages.schema.json", ""}}},
 	{"update", "internal/update", "release.gen.go", []source{{"release/v1/release.schema.json", "Release"}}},
+	{"community", "internal/community", "communitypack.gen.go", []source{{"communitypack/v1/communitypack.schema.json", "Document"}}},
 	{"content", "internal/content", "detectorpack.gen.go", []source{
 		{"detectorpack/v1/pack.schema.json", "Manifest"},
 		{"detectorpack/v1/detectors.schema.json", "DetectorsFile"},
+		{"detectorpack/v1/pack-set.schema.json", "PackSet"},
 	}},
 }
 
@@ -390,6 +394,9 @@ func (c *fileCtx) goType(at loc) string {
 	}
 	if types, ok := n.get("type"); ok {
 		if list, ok := types.([]any); ok && slices.Contains(list, any("object")) {
+			if slices.Contains(list, any("null")) {
+				return "*map[string]any" // so an empty object survives encoding, apart from null
+			}
 			return "map[string]any"
 		}
 	}

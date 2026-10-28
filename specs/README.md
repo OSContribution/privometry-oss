@@ -12,8 +12,10 @@ Language-neutral contracts shared by the Go edge (this repo) and the Java platfo
 | `riskfeed/v1` | `privometry.riskfeed/v1` | Draft |
 | `entitlements/v1` | `privometry.entitlements/v1`, `privometry.license/v1`, feature registry | Draft |
 | `release/v1` | `privometry.release/v1` (signed self-update manifest) | Draft |
-| `detectorpack/v1` | `privometry.detectorpack/v1`, `privometry.detectors/v1` (content detectors) | Draft |
+| `detectorpack/v1` | `privometry.detectorpack/v1`, `privometry.detectors/v1` (content detectors), `privometry.detectorpack_set/v1` (signed set) | Draft |
+| `communitypack/v1` | `privometry.communitypack/v1` (a rule or detector pack signed by its publisher) | Draft |
 | `edge-api/v1` | `/edge/v1` (OpenAPI 3.1) and message schemas | Draft |
+| `account-api/v1` | `/account/v1` (OpenAPI 3.1) and message schemas: registration with a CLI key or passkey, console sign-in, invitations, members, API keys | Draft |
 | `conformance/` | policy verdicts, signatures, redaction | Draft |
 
 Go code imports this folder as `gitlab.com/cn-solutions/privometry/privometry-oss/specs`: the schemas and `privometry.cedarschema` are embedded, and `specs.Validate` checks a JSON or YAML file against one.
@@ -32,8 +34,10 @@ Go code imports this folder as `gitlab.com/cn-solutions/privometry/privometry-os
 | `riskfeed/v1` | `internal/riskfeed` | `riskfeed.gen.go` |
 | `rulepack/v1` (manifest, tests) | `internal/policy/rulepack` | `rulepack.gen.go` |
 | `release/v1` | `internal/update` | `release.gen.go` |
-| `detectorpack/v1` (manifest, detectors) | `internal/content` | `detectorpack.gen.go` |
+| `detectorpack/v1` (manifest, detectors, set) | `internal/content` | `detectorpack.gen.go` |
+| `communitypack/v1` | `internal/community` | `communitypack.gen.go` |
 | `edge-api/v1/messages.schema.json` | `internal/cloud` | `messages.gen.go` |
+| `account-api/v1/messages.schema.json` | `internal/cloud/account` | `messages.gen.go` |
 
 Policy files and rule files are the exception: `internal/policy/compiler` keeps hand-written types, because conditions accept a string or a list, and a test fails if those types and `policy.schema.json` drift apart.
 

@@ -3,7 +3,9 @@ schema: privometry.adapter/v1
 agent: codex_cli
 display_name: Codex
 versions: ">=0.14.0 <1.0.0"
-verified: []
+verified:
+  - version: 0.164.0
+    fixtures: codex_cli/0.164.0
 detect:
   binaries: [codex]
   processes: [codex]
@@ -16,6 +18,10 @@ detect:
       - "~/Applications/ChatGPT.app/Contents/Resources/codex"
       - "/Applications/Codex.app/Contents/Resources/codex"
   version_cmd: [codex, --version]
+  bypass_flags: [--dangerously-bypass-approvals-and-sandbox]
+  process_patterns: ["@openai/codex/"]
+  # The desktop app's engine (app-server) and the MCP server run all day without sessions.
+  no_session_args: [mcp-server, app-server]
 env_overrides:
   - var: CODEX_HOME
     replaces: "~/.codex"
@@ -94,13 +100,18 @@ hooks:
     required: true
     tiers: [user, project]
     instructions: Open Codex, run /hooks and trust the Privometry hook once; the desktop app then runs it too.
+  disable_settings:
+    - { pointer: /features/hooks, value: false }
+    - { pointer: /features/codex_hooks, value: false }
   events:
+    # Recorded with 0.164.0: payloads carry session_id, turn_id (no prompt_id),
+    # transcript_path (null in codex exec), cwd, model and permission_mode.
     - name: UserPromptSubmit
       role: prompt_submit
       verdicts: []
       request:
         session_id: /session_id
-        prompt_id: /prompt_id
+        prompt_id: /turn_id
         prompt: /prompt
         cwd: /cwd
       responses:
@@ -110,7 +121,7 @@ hooks:
       matcher: ".*"
       verdicts: [allow, deny]
       fallback: { ask: deny }
-      request:
+      request: &tool_request
         session_id: /session_id
         tool_use_id: /tool_use_id
         tool_name: /tool_name
@@ -126,8 +137,28 @@ hooks:
               hookEventName: PreToolUse
               permissionDecision: deny
               permissionDecisionReason: "{message}"
+    # Fires only after a tool succeeds; tool_response is text for Bash and
+    # apply_patch and the MCP result object for MCP tools.
+    - name: PostToolUse
+      role: post_tool
+      matcher: ".*"
+      verdicts: []
+      request:
+        <<: *tool_request
+        tool_response: /tool_response
+      responses:
+        none: { exit_code: 0, stdout: null }
     - name: SessionStart
       role: session_start
+      verdicts: []
+      request: { session_id: /session_id, cwd: /cwd }
+      responses:
+        none: { exit_code: 0, stdout: null }
+    # Codex limits a SessionEnd hook to 3 seconds and warns on every run
+    # when it is registered with more.
+    - name: SessionEnd
+      role: session_end
+      timeout_seconds: 3
       verdicts: []
       request: { session_id: /session_id, cwd: /cwd }
       responses:

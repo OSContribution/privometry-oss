@@ -15,6 +15,8 @@ func TestPacks(t *testing.T) {
 	if len(manifests) < 5 {
 		t.Fatalf("expected the five Privometry packs, found %v", manifests)
 	}
+	community, _ := filepath.Glob("community/*/pack.yaml") // examples, not shipped
+	manifests = append(manifests, community...)
 	for _, m := range manifests {
 		dir := filepath.Dir(m)
 		t.Run(dir, func(t *testing.T) {

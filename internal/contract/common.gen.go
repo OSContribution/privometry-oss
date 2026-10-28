@@ -27,12 +27,13 @@ type AgentProduct string
 
 // Values of AgentProduct.
 const (
-	AgentProductClaudeCode AgentProduct = "claude_code"
-	AgentProductCursor     AgentProduct = "cursor"
-	AgentProductCodexCLI   AgentProduct = "codex_cli"
-	AgentProductGeminiCLI  AgentProduct = "gemini_cli"
-	AgentProductCopilotCLI AgentProduct = "copilot_cli"
-	AgentProductOther      AgentProduct = "other"
+	AgentProductClaudeCode  AgentProduct = "claude_code"
+	AgentProductCursor      AgentProduct = "cursor"
+	AgentProductCodexCLI    AgentProduct = "codex_cli"
+	AgentProductGeminiCLI   AgentProduct = "gemini_cli"
+	AgentProductCopilotCLI  AgentProduct = "copilot_cli"
+	AgentProductAntigravity AgentProduct = "antigravity"
+	AgentProductOther       AgentProduct = "other"
 )
 
 // OS is generated from common/v1/common.schema.json#/$defs/os.
@@ -211,8 +212,13 @@ type KeySet struct {
 // KeySetKey is generated from common/v1/keyset.schema.json#/properties/keys/items.
 type KeySetKey struct {
 	// <role>:<name>:<first 16 hex of the SHA-256 of the raw Ed25519 public key>.
-	KeyID string        `json:"keyid"`
-	Role  KeySetKeyRole `json:"role"`
+	KeyID string `json:"keyid"`
+
+	// publisher keys sign community rule and detector packs; their name is the
+	// publisher, the first part of the pack IDs they may sign. A publisher
+	// distributes its keys as a key set of publisher keys, which people trust with
+	// privometry trust add; publisher keys never appear in a region's key set.
+	Role KeySetKeyRole `json:"role"`
 
 	// Raw 32-byte Ed25519 public key, standard base64.
 	PublicKey string `json:"public_key"`
@@ -230,13 +236,19 @@ type KeySetKey struct {
 }
 
 // KeySetKeyRole is generated from common/v1/keyset.schema.json#/properties/keys/items/properties/role.
+//
+// publisher keys sign community rule and detector packs; their name is the
+// publisher, the first part of the pack IDs they may sign. A publisher
+// distributes its keys as a key set of publisher keys, which people trust with
+// privometry trust add; publisher keys never appear in a region's key set.
 type KeySetKeyRole string
 
 // Values of KeySetKeyRole.
 const (
-	KeySetKeyRoleRoot    KeySetKeyRole = "root"
-	KeySetKeyRoleRelease KeySetKeyRole = "release"
-	KeySetKeyRolePolicy  KeySetKeyRole = "policy"
-	KeySetKeyRoleFeed    KeySetKeyRole = "feed"
-	KeySetKeyRoleLicense KeySetKeyRole = "license"
+	KeySetKeyRoleRoot      KeySetKeyRole = "root"
+	KeySetKeyRoleRelease   KeySetKeyRole = "release"
+	KeySetKeyRolePolicy    KeySetKeyRole = "policy"
+	KeySetKeyRoleFeed      KeySetKeyRole = "feed"
+	KeySetKeyRoleLicense   KeySetKeyRole = "license"
+	KeySetKeyRolePublisher KeySetKeyRole = "publisher"
 )

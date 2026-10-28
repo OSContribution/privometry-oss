@@ -12,6 +12,7 @@ import (
 	"gitlab.com/cn-solutions/privometry/privometry-oss/detectorpacks"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/content"
 	"log/slog"
+	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -20,6 +21,8 @@ import (
 
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/adapters/registry"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/buildinfo"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/cloud/bundles"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/cloud/cloudsync"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/contract"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/events"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/guard"
@@ -48,9 +51,20 @@ type Config struct {
 	Detectors []*content.Pack
 	Logger    *slog.Logger
 	Now       func() time.Time // nil means time.Now
+	// Procs reads running processes, for bypass flags and silent agents; nil
+	// functions mean the platform's.
+	Procs Procs
+	// BootTime says when the system started, to tell a reboot from a stopped
+	// daemon; nil means platform.BootTime.
+	BootTime func() (time.Time, error)
 	// LocalCapture controls target_clear in the local timeline. Empty defaults
 	// to redacted; clear is retained for explicitly configured deployments.
 	LocalCapture contract.PrivacyLevel
+	// CloudHTTP is the client whose server roots cloud requests trust; nil
+	// means the system's. Tests set it to reach their own server.
+	CloudHTTP *http.Client
+	// AdapterSetVersion is the adapter definition set in use, for heartbeats.
+	AdapterSetVersion int64
 }
 
 // appendEvent applies the local persistence boundary before data reaches
@@ -80,11 +94,23 @@ type Daemon struct {
 	hooked   map[contract.AgentProduct]hookedState
 	probes   map[string]time.Time // one-time probe tokens and their expiry
 
+	lastHook map[contract.AgentProduct]time.Time // when each agent's hook last called, for the MCP shim
+
 	content     *content.Engine
+	memMu       sync.Mutex           // memory file checks, snapshots and restores
+	bypassSeen  map[string]bool      // "<agent> <flag>" running at the last bypass check; housekeeping only
+	procs       procState            // which running processes call the hook, and silent agents already reported
 	roots       map[string]time.Time // workspaces agents worked in, for project memory files
 	agentWrites map[string]time.Time // memory files agents were allowed to write, for attribution
 	bg          sync.WaitGroup       // background scans
 	bgSlots     chan struct{}
+
+	cloud        *cloudsync.Syncer    // enrolled devices: certificate renewal, bundles, uploads, heartbeats, inventory
+	catalogState catalogState         // guarded by mu
+	approvals    map[string]*approval // remote approvals by action, guarded by mu
+	feedState    feedState            // the risk feed, guarded by mu
+	stop         context.Context      // canceled by Close, for background work that waits on the cloud
+	cancel       context.CancelFunc
 }
 
 type hookedState struct {
@@ -94,7 +120,8 @@ type hookedState struct {
 
 type cachedPolicy struct {
 	p     *policy.Policy
-	stamp string // policy file mtimes and sizes when loaded
+	allow *content.Allowlist // content allowlist entries of the same files
+	stamp string             // policy file mtimes and sizes when loaded
 	until time.Time
 }
 
@@ -107,6 +134,10 @@ type recentCall struct {
 func New(cfg Config) (*Daemon, error) {
 	if cfg.Now == nil {
 		cfg.Now = time.Now
+	}
+	cfg.Procs.defaults()
+	if cfg.BootTime == nil {
+		cfg.BootTime = platform.BootTime
 	}
 	if cfg.Logger == nil {
 		cfg.Logger = slog.New(slog.NewTextHandler(os.Stderr, nil))
@@ -145,20 +176,32 @@ func New(cfg Config) (*Daemon, error) {
 		content: content.New(cfg.Detectors, content.Options{Salt: salt}), bgSlots: make(chan struct{}, 2),
 		roots: map[string]time.Time{}, agentWrites: map[string]time.Time{}}
 	d.device = events.Device{DeviceID: id, OS: contract.OS(cfg.Env.OS()), OSVersion: osVersion(), Arch: arch(), SensorVersion: sensorVersion()}
+	d.stop, d.cancel = context.WithCancel(context.Background())
+	d.cloud = &cloudsync.Syncer{Env: cfg.Env, HTTP: cfg.CloudHTTP, Logger: cfg.Logger}
+	d.cloud.Local = cloudLocal{d}
 	if _, err := d.policyFor(""); err != nil {
 		d.cfg.Logger.Warn("baseline policy failed to load", "err", err)
 	}
+	d.refreshFingerprintKey()
 	return d, nil
 }
 
 // Close waits for background scans and closes the timeline.
 func (d *Daemon) Close() error {
+	d.cancel()
 	d.bg.Wait()
 	return d.store.Close()
 }
 
 // Wait blocks until background scans finish, for tests.
 func (d *Daemon) Wait() { d.bg.Wait() }
+
+// CloudSync runs the cloud work that is due now, as the daemon's loop does
+// every few seconds; tests call it instead of waiting.
+func (d *Daemon) CloudSync(ctx context.Context) bool {
+	d.refreshFingerprintKey()
+	return d.cloud.Tick(ctx, d.cfg.Now())
+}
 
 // Store exposes the timeline, for tests and the CLI.
 func (d *Daemon) Store() *timeline.Store { return d.store }
@@ -180,26 +223,50 @@ func (d *Daemon) Run(ctx context.Context) error {
 		return err
 	}
 	d.cfg.Logger.Info("privometryd listening", "socket", addr, "version", buildinfo.Version)
+	if _, err := d.CheckLastRun(); err != nil {
+		d.cfg.Logger.Warn("could not check the previous run", "err", err)
+	}
+	if err := d.MarkAlive(); err != nil {
+		d.cfg.Logger.Warn("could not mark privometryd alive", "err", err)
+	}
 	go func() {
 		<-ctx.Done()
 		l.Close()
 	}()
 	go d.housekeeping(ctx)
+	go d.cloudLoop(ctx)
 	err = ipc.Serve(l, d.Handle, 5*time.Second)
 	os.Remove(addr)
+	if ctx.Err() != nil {
+		if err := d.MarkStopped(); err != nil {
+			d.cfg.Logger.Warn("could not mark the stop", "err", err)
+		}
+	}
 	return err
 }
 
 func (d *Daemon) housekeeping(ctx context.Context) {
 	tick := time.NewTicker(time.Minute)
 	defer tick.Stop()
-	lastPrune := time.Time{}
+	lastPrune, lastBypass := time.Time{}, time.Time{}
 	for {
+		if err := d.MarkAlive(); err != nil {
+			d.cfg.Logger.Warn("could not mark privometryd alive", "err", err)
+		}
 		if _, err := d.CheckIntegrity(); err != nil {
 			d.cfg.Logger.Warn("integrity check failed", "err", err)
 		}
 		if _, err := d.CheckMemory(); err != nil {
 			d.cfg.Logger.Warn("memory check failed", "err", err)
+		}
+		if _, err := d.CheckSilent(); err != nil {
+			d.cfg.Logger.Warn("silent agent check failed", "err", err)
+		}
+		if now := d.cfg.Now(); now.Sub(lastBypass) >= bypassEvery {
+			if _, err := d.CheckBypass(); err != nil {
+				d.cfg.Logger.Warn("bypass check failed", "err", err)
+			}
+			lastBypass = now
 		}
 		if n, err := d.ImportSpool(); err != nil {
 			d.cfg.Logger.Warn("spool import failed", "err", err)
@@ -209,6 +276,9 @@ func (d *Daemon) housekeeping(ctx context.Context) {
 		if now := d.cfg.Now(); now.Sub(lastPrune) > 24*time.Hour {
 			if _, err := d.store.Prune(now.Add(-30*24*time.Hour), now.Add(-7*24*time.Hour)); err != nil {
 				d.cfg.Logger.Warn("prune failed", "err", err)
+			}
+			if _, err := d.store.PruneMemory(keepVersions, now.Add(-keepFor)); err != nil {
+				d.cfg.Logger.Warn("memory snapshot prune failed", "err", err)
 			}
 			lastPrune = now
 		}
@@ -251,6 +321,37 @@ func (d *Daemon) Handle(req ipc.Request) ipc.Response {
 	case "probe":
 		data, _ := json.Marshal(map[string]string{"token": d.newProbe()})
 		return ipc.Response{OK: true, Data: data}
+	case "memory":
+		var q MemoryQuery
+		if err := json.Unmarshal(req.Query, &q); err != nil {
+			return ipc.Response{Error: "bad query: " + err.Error()}
+		}
+		out, err := d.memoryOp(q)
+		if err != nil {
+			return ipc.Response{Error: err.Error()}
+		}
+		data, _ := json.Marshal(out)
+		return ipc.Response{OK: true, Data: data}
+	case "lifecycle":
+		var q Lifecycle
+		if err := json.Unmarshal(req.Query, &q); err != nil {
+			return ipc.Response{Error: "bad query: " + err.Error()}
+		}
+		if err := d.lifecycle(q); err != nil {
+			return ipc.Response{Error: err.Error()}
+		}
+		return ipc.Response{OK: true}
+	case "mcp":
+		if req.MCP == nil {
+			return ipc.Response{Error: "mcp request without mcp"}
+		}
+		resp, err := d.mcp(*req.MCP)
+		if err != nil {
+			d.cfg.Logger.Error("mcp failed", "agent", req.MCP.Agent, "server", req.MCP.Server, "phase", req.MCP.Phase, "err", err)
+			return ipc.Response{Error: err.Error()}
+		}
+		resp.OK = true
+		return resp
 	case "hook":
 		if req.Hook == nil {
 			return ipc.Response{Error: "hook request without hook"}
@@ -268,7 +369,7 @@ func (d *Daemon) Handle(req ipc.Request) ipc.Response {
 
 // Ops are the IPC operations this build answers. A CLI newer than the
 // running daemon finds the ones it needs missing and asks for a restart.
-var Ops = []string{"ping", "status", "events", "hook", "probe"}
+var Ops = []string{"ping", "status", "events", "hook", "mcp", "probe", "memory", "lifecycle"}
 
 // Status is what "privometry daemon status" shows.
 type Status struct {
@@ -299,7 +400,7 @@ func (d *Daemon) Status() (Status, error) {
 // policy and the repo policy. It is reloaded when either file changes, and at
 // the next exception expiry.
 func (d *Daemon) policyFor(repoRoot string) (*policy.Policy, error) {
-	stamp := stampOf(d.cfg.Env.Home, repoRoot)
+	stamp := stampOf(d.cfg.Env.Home, repoRoot, d.dataDir)
 	d.mu.Lock()
 	c, ok := d.policies[repoRoot]
 	d.mu.Unlock()
@@ -307,7 +408,7 @@ func (d *Daemon) policyFor(repoRoot string) (*policy.Policy, error) {
 	if ok && c.stamp == stamp && (c.until.IsZero() || now.Before(c.until)) {
 		return c.p, nil
 	}
-	sources, errs := policy.LocalSources(d.cfg.Env.Home, repoRoot)
+	sources, errs := policy.Sources(d.cfg.Env, repoRoot, now)
 	for _, err := range errs {
 		d.cfg.Logger.Warn("policy file ignored", "err", err)
 	}
@@ -324,7 +425,7 @@ func (d *Daemon) policyFor(repoRoot string) (*policy.Policy, error) {
 		return nil, err
 	}
 	d.mu.Lock()
-	d.policies[repoRoot] = &cachedPolicy{p: p, stamp: stamp, until: merge.NextExpiry(in)}
+	d.policies[repoRoot] = &cachedPolicy{p: p, allow: policy.Allowlist(sources), stamp: stamp, until: merge.NextExpiry(in)}
 	d.mu.Unlock()
 	if repoRoot == "" {
 		d.writeFailModes(res)
@@ -332,9 +433,23 @@ func (d *Daemon) policyFor(repoRoot string) (*policy.Policy, error) {
 	return p, nil
 }
 
-func stampOf(home, repoRoot string) string {
+// allowlistFor returns the content allowlist of the user and repo policies
+// (PRD SCAN-09), or nil when the policy does not load.
+func (d *Daemon) allowlistFor(repoRoot string) *content.Allowlist {
+	if _, err := d.policyFor(repoRoot); err != nil {
+		return nil
+	}
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if c, ok := d.policies[repoRoot]; ok {
+		return c.allow
+	}
+	return nil
+}
+
+func stampOf(home, repoRoot, dataDir string) string {
 	var s string
-	for _, p := range []string{filepath.Join(home, policy.UserPolicyPath), filepath.Join(repoRoot, policy.RepoPolicyPath)} {
+	for _, p := range []string{filepath.Join(home, policy.UserPolicyPath), filepath.Join(repoRoot, policy.RepoPolicyPath), filepath.Join(dataDir, bundles.File)} {
 		if info, err := os.Stat(p); err == nil {
 			s += fmt.Sprintf("%s:%d:%d;", p, info.ModTime().UnixNano(), info.Size())
 		}

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -16,6 +17,9 @@ import (
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/adapters/registry"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/contract"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/platform"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/policy"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/policy/compiler"
+	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/policy/merge"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/scanner"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/scanner/discover"
 	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/scanner/report"
@@ -72,7 +76,7 @@ func scan(t *testing.T, opts discover.Options) *scanner.Result {
 	if err != nil {
 		t.Fatal(err)
 	}
-	res, err := scanner.Scan(reg, opts)
+	res, err := scanner.Scan(reg, scanner.Options{Options: opts})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -437,5 +441,320 @@ func TestCodexDesktopApp(t *testing.T) {
 				t.Errorf("version note %q", codex.VersionNote)
 			}
 		})
+	}
+}
+
+func TestChangedFiles(t *testing.T) {
+	opts := fixture(t, false, true)
+	repo := filepath.Join(opts.Root, opts.RepoRoot)
+	token := "gh" + "p_KtHF4vUCsMehGAkWvj7FAc9QeWJKY40uvSwM"
+	for name, body := range map[string]string{
+		"src/app.ts":      `const token = "` + token + `";` + "\n",
+		"assets/logo.png": "\x89PNG\x00\x00" + token,
+	} {
+		if err := os.MkdirAll(filepath.Dir(filepath.Join(repo, name)), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(repo, name), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	changes, err := scanner.ParseChanges(strings.NewReader("M\t.claude/settings.json\nA\t.mcp.json\nD\tdocs/sub/AGENTS.md\nM\t.privometry/policy.yaml\nR087\told.ts\tsrc/app.ts\nA\tassets/logo.png\nREADME.md\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	reg, err := registry.Load(adapterdefs.FS)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := scanner.Scan(reg, scanner.Options{Options: opts, Changed: changes})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]string{}
+	for _, f := range res.Findings {
+		if f.Check == "agent_file_changed" {
+			got[f.Path] = string(f.Severity) + " " + f.Message
+		}
+	}
+	for path, want := range map[string]string{
+		".claude/settings.json":   "medium Changed a file Claude Code reads",
+		".mcp.json":               "medium Changed a file Claude Code reads from this repo (MCP servers)",
+		"docs/sub/AGENTS.md":      "low Deleted a file",
+		".privometry/policy.yaml": "medium Changed the repo's Privometry policy",
+	} {
+		if !strings.HasPrefix(got[path], want) {
+			t.Errorf("%s: %q, want prefix %q", path, got[path], want)
+		}
+	}
+	if !strings.Contains(got["docs/sub/AGENTS.md"], "Codex") {
+		t.Errorf("nested AGENTS.md should name Codex: %q", got["docs/sub/AGENTS.md"])
+	}
+	if len(got) != 4 {
+		t.Errorf("changed agent files %v", got)
+	}
+	var inApp []scanner.ContentFinding
+	for _, f := range res.ContentFindings {
+		if f.Path == "assets/logo.png" {
+			t.Errorf("a binary file was scanned: %+v", f)
+		}
+		if f.Path == "src/app.ts" {
+			inApp = append(inApp, f)
+		}
+	}
+	if len(inApp) != 1 || inApp[0].Source != "repo" || inApp[0].Agent != "" || inApp[0].Line != 1 || strings.Contains(inApp[0].Excerpt, token[6:]) {
+		t.Errorf("changed file findings %+v", inApp)
+	}
+
+	// An allowlist in the repo policy drops it, and the report counts it.
+	sources := []merge.Source{{Layer: merge.Repo, Policy: compiler.Policy{Name: "api", Allowlist: []compiler.AllowEntry{
+		{Detectors: []string{"privometry/credentials:*"}, Paths: []string{"src/*"}, Reason: "fixtures"}}}}}
+	res, err = scanner.Scan(reg, scanner.Options{Options: opts, Changed: changes, Allowlist: policy.Allowlist(sources)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range res.ContentFindings {
+		if f.Path == "src/app.ts" {
+			t.Errorf("allowlisted finding reported: %+v", f)
+		}
+	}
+	if res.Allowlisted != 1 {
+		t.Errorf("allowlisted %d, want 1", res.Allowlisted)
+	}
+	var table bytes.Buffer
+	if err := report.Table(&table, res); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(table.String(), "1 content finding(s) skipped by allowlists") || !strings.Contains(table.String(), "Changed the repo's Privometry policy") {
+		t.Errorf("table:\n%s", table.String())
+	}
+}
+
+func TestParseChanges(t *testing.T) {
+	got, err := scanner.ParseChanges(strings.NewReader("src/a.go\n./b.go\nD\tc.go\nC100\tx.go\ty.go\n\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []scanner.Change{{Path: "src/a.go"}, {Path: "b.go"}, {Path: "c.go", Deleted: true}, {Path: "y.go"}}
+	if !slices.Equal(got, want) {
+		t.Errorf("got %+v", got)
+	}
+	for _, bad := range []string{"/etc/passwd\n", "../outside\n", "Q\tfile\n"} {
+		if _, err := scanner.ParseChanges(strings.NewReader(bad)); err == nil {
+			t.Errorf("%q accepted", bad)
+		}
+	}
+}
+
+// Gemini CLI and Copilot CLI configs, written into an otherwise empty machine.
+func TestGeminiAndCopilot(t *testing.T) {
+	root := t.TempDir()
+	write := func(p, body string) {
+		t.Helper()
+		full := filepath.Join(root, p)
+		os.MkdirAll(filepath.Dir(full), 0o755)
+		if err := os.WriteFile(full, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("home/dev/.gemini/settings.json", `{
+  "tools": {"allowed": ["run_shell_command"]},
+  "mcpServers": {"fs": {"command": "npx", "args": ["-y", "@modelcontextprotocol/server-filesystem@latest", "/home/dev"]}},
+  "hooks": {"BeforeTool": [{"matcher": ".*", "hooks": [{"name": "privometry", "type": "command", "command": "/usr/local/bin/privometry-hook gemini_cli BeforeTool", "timeout": 10000}]}]}
+}`)
+	write("home/dev/.gemini/GEMINI.md", "# Notes\n")
+	write("home/dev/work/api/.gemini/settings.json", `{"hooks": {"AfterTool": [{"hooks": [{"type": "command", "command": "./scripts/after.sh"}]}]}}`)
+	write("home/dev/work/api/GEMINI.md", "Use pnpm.\n")
+	write("home/dev/.copilot/hooks/privometry.json", `{"version": 1, "hooks": {"preToolUse": [{"type": "command", "bash": "/usr/local/bin/privometry-hook copilot_cli preToolUse", "timeoutSec": 10}]}}`)
+	write("home/dev/.copilot/mcp-config.json", `{"mcpServers": {"tracker": {"type": "http", "url": "https://mcp.example.com/mcp", "headers": {"Authorization": "Bearer fake-literal-token-value-1234"}}}}`)
+	write("home/dev/work/api/.github/hooks/ci.json", `{"version": 1, "hooks": {"sessionStart": [{"type": "command", "bash": "./scripts/bootstrap.sh"}]}}`)
+	write("home/dev/work/api/.github/copilot-instructions.md", "Write tests.\n")
+
+	opts := discover.Options{
+		Env:      platform.Env{GOOS: "linux", Home: "/home/dev", Getenv: func(string) string { return "" }},
+		Machine:  true,
+		Root:     root,
+		RepoRoot: "/home/dev/work/api",
+		LookPath: func(name string) (string, error) {
+			if name == "gemini" || name == "copilot" {
+				return "/usr/local/bin/" + name, nil
+			}
+			return "", exec.ErrNotFound
+		},
+		RunVersion: func(argv []string) (string, error) {
+			switch filepath.Base(argv[0]) {
+			case "gemini":
+				return "0.41.2\n", nil
+			case "copilot":
+				return "GitHub Copilot CLI 1.0.69\n", nil
+			}
+			return "", errors.New("unexpected command")
+		},
+		ListProcesses: func() ([]string, error) { return nil, nil },
+	}
+	res := scan(t, opts)
+	agents := map[contract.AgentProduct]discover.Agent{}
+	for _, a := range res.Agents {
+		agents[a.Product] = a
+	}
+	gemini, copilot := agents[contract.AgentProductGeminiCLI], agents[contract.AgentProductCopilotCLI]
+	if !gemini.Installed || gemini.Version != "0.41.2" || gemini.Supported == nil || !*gemini.Supported {
+		t.Errorf("gemini %+v", gemini)
+	}
+	if !copilot.Installed || copilot.Version != "1.0.69" || copilot.Supported == nil || !*copilot.Supported {
+		t.Errorf("copilot %+v", copilot)
+	}
+	hooks := func(a discover.Agent) (ours, others int) {
+		for _, h := range a.Hooks {
+			if h.Privometry {
+				ours++
+			} else {
+				others++
+			}
+		}
+		return
+	}
+	if ours, others := hooks(gemini); ours != 1 || others != 1 {
+		t.Errorf("gemini hooks %+v", gemini.Hooks)
+	}
+	if ours, others := hooks(copilot); ours != 1 || others != 1 {
+		t.Errorf("copilot hooks %+v", copilot.Hooks)
+	}
+	memory := func(a discover.Agent) []string {
+		var out []string
+		for _, m := range a.MemoryFiles {
+			out = append(out, string(m.Tier)+":"+m.Kind+":"+m.Path)
+		}
+		return out
+	}
+	if got := memory(gemini); !slices.Equal(got, []string{"user:memory:~/.gemini/GEMINI.md", "project:instructions:GEMINI.md"}) {
+		t.Errorf("gemini memory files %v", got)
+	}
+	if got := memory(copilot); !slices.Equal(got, []string{"project:instructions:.github/copilot-instructions.md"}) {
+		t.Errorf("copilot memory files %v", got)
+	}
+	if len(gemini.MCPServers) != 1 || gemini.MCPServers[0].Pinned == nil || *gemini.MCPServers[0].Pinned {
+		t.Errorf("gemini MCP servers %+v", gemini.MCPServers)
+	}
+	if len(copilot.MCPServers) != 1 || copilot.MCPServers[0].Transport != "http" {
+		t.Errorf("copilot MCP servers %+v", copilot.MCPServers)
+	}
+
+	got := map[string]int{}
+	for _, f := range res.Findings {
+		got[string(f.Agent)+" "+f.Check]++
+	}
+	for k, n := range map[string]int{
+		"gemini_cli auto_approve_mode": 1, "gemini_cli unpinned_mcp_server": 1, "gemini_cli project_hook": 1,
+		"copilot_cli project_hook": 1, "copilot_cli secret_in_config": 1,
+	} {
+		if got[k] != n {
+			t.Errorf("%s: %d findings, want %d (all: %v)", k, got[k], n, got)
+		}
+	}
+	assertNoSecrets(t, res)
+}
+
+func TestAntigravity(t *testing.T) {
+	root := t.TempDir()
+	write := func(p, body string) {
+		t.Helper()
+		full := filepath.Join(root, p)
+		os.MkdirAll(filepath.Dir(full), 0o755)
+		if err := os.WriteFile(full, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("home/dev/.gemini/config/hooks.json", `{
+  "privometry": {"PreToolUse": [{"matcher": "*", "hooks": [{"type": "command", "command": "/usr/local/bin/privometry-hook antigravity PreToolUse", "timeout": 10}]}],
+                 "SessionStart": [{"command": "/usr/local/bin/privometry-hook antigravity SessionStart"}]},
+  "old-linter": {"enabled": false, "PreToolUse": [{"matcher": "run_command", "hooks": [{"command": "./lint.sh"}]}]}
+}`)
+	write("home/dev/work/api/.agents/hooks.json", `{"repo-setup": {"SessionStart": [{"command": "./scripts/bootstrap.sh"}]}}`)
+	write("home/dev/.gemini/antigravity-cli/settings.json", `{"permissions": {"allow": ["command(git)", "command(*)"], "deny": ["command(sudo)"]}}`)
+	write("home/dev/.gemini/config/mcp_config.json", `{"mcpServers": {"tracker": {"serverUrl": "https://mcp.example.com/mcp/", "headers": {"Authorization": "Bearer fake-literal-token-value-1234"}},
+  "fs": {"command": "npx", "args": ["-y", "@modelcontextprotocol/server-filesystem@latest", "/home/dev"]}}}`)
+	write("home/dev/.gemini/config/rules/style.md", "---\ntrigger: always_on\n---\nPrefer small commits.\n")
+	write("home/dev/work/api/.agents/rules/testing.md", "---\ntrigger: always_on\n---\nRun make test.\n")
+	write("home/dev/work/api/AGENTS.md", "Use pnpm.\n")
+
+	opts := discover.Options{
+		Env:      platform.Env{GOOS: "linux", Home: "/home/dev", Getenv: func(string) string { return "" }},
+		Machine:  true,
+		Root:     root,
+		RepoRoot: "/home/dev/work/api",
+		LookPath: func(name string) (string, error) {
+			if name == "agy" {
+				return "/usr/local/bin/agy", nil
+			}
+			return "", exec.ErrNotFound
+		},
+		RunVersion:    func([]string) (string, error) { return "agy 1.1.27\n", nil },
+		ListProcesses: func() ([]string, error) { return nil, nil },
+	}
+	res := scan(t, opts)
+	var agy discover.Agent
+	for _, a := range res.Agents {
+		if a.Product == contract.AgentProductAntigravity {
+			agy = a
+		}
+	}
+	if !agy.Installed || agy.Version != "1.1.27" || agy.Supported == nil || !*agy.Supported || agy.Name != "Antigravity" {
+		t.Fatalf("antigravity %+v", agy)
+	}
+	var hooks []string
+	for _, h := range agy.Hooks {
+		hooks = append(hooks, fmt.Sprintf("%s %s %v", h.Tier, h.Event, h.Privometry))
+	}
+	if got := strings.Join(hooks, ", "); got != "user PreToolUse true, user SessionStart true, project SessionStart false" {
+		t.Errorf("hooks: %s (a disabled hook is skipped)", got)
+	}
+	servers := map[string]discover.MCPServer{}
+	for _, s := range agy.MCPServers {
+		servers[s.Name] = s
+	}
+	if servers["tracker"].Transport != "http" || servers["fs"].Pinned == nil || *servers["fs"].Pinned {
+		t.Errorf("MCP servers %+v", agy.MCPServers)
+	}
+	var memory []string
+	for _, m := range agy.MemoryFiles {
+		memory = append(memory, string(m.Tier)+":"+m.Kind+":"+m.Path)
+	}
+	sort.Strings(memory)
+	if got := strings.Join(memory, " "); got != "project:instructions:AGENTS.md project:rules:.agents/rules/testing.md user:rules:~/.gemini/config/rules/style.md" {
+		t.Errorf("memory files %s", got)
+	}
+	got := map[string]int{}
+	for _, f := range res.Findings {
+		if f.Agent == contract.AgentProductAntigravity {
+			got[f.Check]++
+		}
+	}
+	for k, n := range map[string]int{"auto_approve_mode": 1, "project_hook": 1, "unpinned_mcp_server": 1, "secret_in_config": 1} {
+		if got[k] != n {
+			t.Errorf("%s: %d findings, want %d (all: %v)", k, got[k], n, got)
+		}
+	}
+	assertNoSecrets(t, res)
+}
+
+// An agent running under another name (the native installer runs a versioned
+// binary) is found by its process pattern, and only the pattern is evidence.
+func TestProcessPatternDetection(t *testing.T) {
+	reg, _ := registry.Load(adapterdefs.FS)
+	agents, err := discover.Run(reg, discover.Options{
+		Env:      platform.Env{GOOS: "linux", Home: "/home/dev", Getenv: func(string) string { return "" }},
+		Machine:  true,
+		Root:     t.TempDir(),
+		LookPath: func(string) (string, error) { return "", exec.ErrNotFound },
+		ListProcesses: func() ([]string, error) {
+			return []string{"/home/dev/.local/share/claude/versions/2.1.304"}, nil
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(agents) != 1 || agents[0].Product != contract.AgentProductClaudeCode || !slices.Equal(agents[0].Evidence, []string{"process claude/versions/"}) {
+		t.Fatalf("agents = %+v", agents)
 	}
 }

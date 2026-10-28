@@ -398,6 +398,9 @@ func looksLikePath(p string) bool {
 	if strings.ContainsAny(p, " \t\n;()'\"") {
 		return false // code or prose, not a path
 	}
+	if isDrive(slash(p)) || strings.HasPrefix(p, `.\`) || strings.HasPrefix(p, `..\`) || strings.HasPrefix(p, "%USERPROFILE%") {
+		return true // Windows
+	}
 	return strings.HasPrefix(p, "/") || strings.HasPrefix(p, "~") || strings.HasPrefix(p, "./") ||
 		strings.HasPrefix(p, "../") || strings.HasPrefix(p, "$HOME") || strings.HasPrefix(p, ".env") ||
 		strings.Contains(p, "/") && !strings.Contains(p, "://") && !strings.Contains(p, "@")

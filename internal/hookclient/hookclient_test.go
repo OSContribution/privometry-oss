@@ -210,3 +210,58 @@ func TestDaemonReplyAndTimeout(t *testing.T) {
 		t.Errorf("slow daemon should fall back with reason timeout: %q", out)
 	}
 }
+
+func TestFallbackGeminiAndCopilot(t *testing.T) {
+	e, _ := env(t)
+	gemini := func(tool string, input map[string]any) string {
+		b, _ := json.Marshal(map[string]any{"session_id": "g", "hook_event_name": "BeforeTool", "tool_name": tool, "tool_input": input, "cwd": "/home/dev/work"})
+		return string(b)
+	}
+	copilot := func(tool string, args map[string]any) string {
+		raw, _ := json.Marshal(args) // Copilot sends toolArgs as a JSON string
+		b, _ := json.Marshal(map[string]any{"sessionId": "c", "timestamp": 1793181600000, "toolName": tool, "toolArgs": string(raw), "cwd": "/home/dev/work"})
+		return string(b)
+	}
+	sample := "gh" + "p_" + strings.Repeat("a", 36)
+	cases := []struct {
+		agent, event, payload, want string
+	}{
+		{"gemini_cli", "BeforeTool", gemini("run_shell_command", map[string]any{"command": "rm -rf ~"}), `"decision":"deny"`},
+		{"gemini_cli", "BeforeTool", gemini("run_shell_command", map[string]any{"command": "cat ~/.aws/credentials"}), `"decision":"deny"`}, // ask becomes deny
+		{"gemini_cli", "BeforeTool", gemini("run_shell_command", map[string]any{"command": "ls"}), ""},
+		{"gemini_cli", "BeforeTool", gemini("write_file", map[string]any{"file_path": "/home/dev/work/a.ts", "content": "t = '" + sample + "'"}), `"decision":"deny"`},
+		{"copilot_cli", "preToolUse", copilot("bash", map[string]any{"command": "rm -rf ~"}), `"permissionDecision":"deny"`},
+		{"copilot_cli", "preToolUse", copilot("bash", map[string]any{"command": "cat ~/.aws/credentials"}), `"permissionDecision":"ask"`},
+		{"copilot_cli", "preToolUse", copilot("create", map[string]any{"path": "/home/dev/work/a.ts", "file_text": "t = '" + sample + "'"}), `"permissionDecision":"ask"`},
+		{"copilot_cli", "preToolUse", copilot("view", map[string]any{"path": "/home/dev/work/README.md"}), ""},
+		{"copilot_cli", "postToolUse", copilot("bash", map[string]any{"command": "rm -rf ~"}), ""},
+	}
+	for _, tc := range cases {
+		out, code := run(t, e, tc.agent, tc.event, tc.payload, 50*time.Millisecond)
+		if code != 0 || tc.want == "" && out != "" || tc.want != "" && !strings.Contains(out, tc.want) {
+			t.Errorf("%s %s %s:\n got %q (exit %d)\nwant %q", tc.agent, tc.event, tc.payload, out, code, tc.want)
+		}
+	}
+}
+
+func TestFallbackAntigravity(t *testing.T) {
+	e, _ := env(t)
+	call := func(tool string, args map[string]any) string {
+		b, _ := json.Marshal(map[string]any{"conversationId": "a", "workspacePaths": []string{"/home/dev/work"}, "modelName": "gemini-3-pro",
+			"toolCall": map[string]any{"name": tool, "args": args}, "stepIdx": 3})
+		return string(b)
+	}
+	sample := "gh" + "p_" + strings.Repeat("a", 36)
+	cases := []struct{ payload, want string }{
+		{call("run_command", map[string]any{"CommandLine": "rm -rf ~", "Cwd": "/home/dev/work"}), `"decision":"deny"`},
+		{call("run_command", map[string]any{"CommandLine": "cat ~/.aws/credentials"}), `"decision":"force_ask"`},
+		{call("write_to_file", map[string]any{"TargetFile": "/home/dev/work/a.ts", "CodeContent": "t = '" + sample + "'"}), `"decision":"force_ask"`},
+		{call("view_file", map[string]any{"AbsolutePath": "/home/dev/work/README.md"}), ""},
+	}
+	for _, tc := range cases {
+		out, code := run(t, e, "antigravity", "PreToolUse", tc.payload, 50*time.Millisecond)
+		if code != 0 || tc.want == "" && out != "" || tc.want != "" && !strings.Contains(out, tc.want) {
+			t.Errorf("%s:\n got %q (exit %d)\nwant %q", tc.payload, out, code, tc.want)
+		}
+	}
+}
