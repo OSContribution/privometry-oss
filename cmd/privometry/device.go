@@ -9,11 +9,11 @@ import (
 	"strings"
 	"time"
 
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/cloud/enroll"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/cloud/upload"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/daemon"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/keystore"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/timeline"
+	"github.com/privometry/privometry-oss/internal/cloud/enroll"
+	"github.com/privometry/privometry-oss/internal/cloud/upload"
+	"github.com/privometry/privometry-oss/internal/daemon"
+	"github.com/privometry/privometry-oss/internal/keystore"
+	"github.com/privometry/privometry-oss/internal/timeline"
 )
 
 // DefaultEdge is the edge API of the India region. The host is a placeholder

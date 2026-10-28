@@ -8,12 +8,12 @@ import (
 	"path/filepath"
 	"time"
 
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/adapters/registry"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/content"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/contract"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/events"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/platform"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/timeline"
+	"github.com/privometry/privometry-oss/internal/adapters/registry"
+	"github.com/privometry/privometry-oss/internal/content"
+	"github.com/privometry/privometry-oss/internal/contract"
+	"github.com/privometry/privometry-oss/internal/events"
+	"github.com/privometry/privometry-oss/internal/platform"
+	"github.com/privometry/privometry-oss/internal/timeline"
 )
 
 // Memory file snapshots (PRD SCAN-14): the daemon keeps every version of a

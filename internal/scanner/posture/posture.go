@@ -10,12 +10,12 @@ import (
 	"sort"
 	"strings"
 
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/adapters/registry"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/contract"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/platform"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/redact"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/scanner/discover"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/scanner/parsers"
+	"github.com/privometry/privometry-oss/internal/adapters/registry"
+	"github.com/privometry/privometry-oss/internal/contract"
+	"github.com/privometry/privometry-oss/internal/platform"
+	"github.com/privometry/privometry-oss/internal/redact"
+	"github.com/privometry/privometry-oss/internal/scanner/discover"
+	"github.com/privometry/privometry-oss/internal/scanner/parsers"
 )
 
 // Finding is one posture issue.

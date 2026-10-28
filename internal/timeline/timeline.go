@@ -15,8 +15,8 @@ import (
 
 	_ "modernc.org/sqlite" // pure-Go SQLite driver
 
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/contract"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/events"
+	"github.com/privometry/privometry-oss/internal/contract"
+	"github.com/privometry/privometry-oss/internal/events"
 )
 
 // Store is an open timeline database.

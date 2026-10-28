@@ -4,7 +4,7 @@ version: 1.1.0
 title: Exfiltration
 description: Blocks agents from sending credential files or data to paste sites and request-capture services, and asks before other uploads.
 maintainers:
-  - { name: Privometry maintainers, url: https://gitlab.com/cn-solutions/privometry }
+  - { name: Privometry maintainers, url: https://github.com/privometry }
 license: Apache-2.0
 min_sensor_version: 0.6.0
 categories: [exfiltration]

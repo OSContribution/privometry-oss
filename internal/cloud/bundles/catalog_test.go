@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/contract"
+	"github.com/privometry/privometry-oss/internal/contract"
 )
 
 func TestCatalogStatus(t *testing.T) {

@@ -3,7 +3,7 @@ package parsers_test
 import (
 	"testing"
 
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/scanner/parsers"
+	"github.com/privometry/privometry-oss/internal/scanner/parsers"
 )
 
 func TestFormats(t *testing.T) {

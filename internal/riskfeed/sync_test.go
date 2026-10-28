@@ -6,11 +6,11 @@ import (
 	"testing"
 	"time"
 
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/cloud/cloudtest"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/cloud/enroll"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/keystore"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/platform"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/riskfeed"
+	"github.com/privometry/privometry-oss/internal/cloud/cloudtest"
+	"github.com/privometry/privometry-oss/internal/cloud/enroll"
+	"github.com/privometry/privometry-oss/internal/keystore"
+	"github.com/privometry/privometry-oss/internal/platform"
+	"github.com/privometry/privometry-oss/internal/riskfeed"
 )
 
 func entry(id, pkg string, score int, verdict string, signals ...string) map[string]any {

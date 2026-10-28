@@ -6,12 +6,12 @@ import (
 	"strings"
 	"time"
 
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/adapters/registry"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/contract"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/events"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/guard"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/platform"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/redact"
+	"github.com/privometry/privometry-oss/internal/adapters/registry"
+	"github.com/privometry/privometry-oss/internal/contract"
+	"github.com/privometry/privometry-oss/internal/events"
+	"github.com/privometry/privometry-oss/internal/guard"
+	"github.com/privometry/privometry-oss/internal/platform"
+	"github.com/privometry/privometry-oss/internal/redact"
 )
 
 const (

@@ -14,10 +14,10 @@ import (
 	"path/filepath"
 	"time"
 
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/contract"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/platform"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/signing"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/trust"
+	"github.com/privometry/privometry-oss/internal/contract"
+	"github.com/privometry/privometry-oss/internal/platform"
+	"github.com/privometry/privometry-oss/internal/signing"
+	"github.com/privometry/privometry-oss/internal/trust"
 )
 
 // File is the signed key set in the data directory.

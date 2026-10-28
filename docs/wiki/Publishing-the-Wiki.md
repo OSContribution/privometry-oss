@@ -1,6 +1,6 @@
 # Publishing the Wiki
 
-The canonical wiki source lives in `docs/wiki/` so documentation changes can be reviewed with code. `Home.md` is the landing page and `_Sidebar.md` defines navigation; both GitHub and GitLab wikis use these names.
+The canonical wiki source lives in `docs/wiki/` so documentation changes can be reviewed with code. `Home.md` is the landing page and `_Sidebar.md` defines navigation, as GitHub wikis expect.
 
 A wiki is a separate Git repository (`<project>.wiki.git`), so files in `docs/wiki/` do not appear in the Wiki tab until they are published. `scripts/publish-wiki.sh` copies them there. Pages link to each other as `Page.md` so links work when browsing the source; the script rewrites them to `Page`, the form wikis resolve.
 
@@ -8,7 +8,7 @@ A wiki is a separate Git repository (`<project>.wiki.git`), so files in `docs/wi
 
 The wiki repository does not exist until the wiki has one page:
 
-1. **GitHub:** Settings → General → Features → enable **Wikis**. **GitLab:** Settings → General → Visibility, project features, permissions → enable **Wiki**.
+1. Settings → General → Features → enable **Wikis**.
 2. Open the Wiki tab and create the first page (any content, for example a page named `Home`). Publishing replaces it.
 
 ## Publish from your machine
@@ -18,7 +18,7 @@ scripts/publish-wiki.sh https://github.com/<owner>/<repo>.wiki.git           # p
 scripts/publish-wiki.sh https://github.com/<owner>/<repo>.wiki.git --push    # publish
 ```
 
-For GitLab use `https://gitlab.com/cn-solutions/privometry/privometry-oss.wiki.git`. The script uses your normal Git credentials, shows what changes, and pushes only with `--push`. `docs/wiki/` stays authoritative: pages edited in the web UI are overwritten, and pages missing from `docs/wiki/` are deleted.
+The script uses your normal Git credentials, shows what changes, and pushes only with `--push`. `docs/wiki/` stays authoritative: pages edited in the web UI are overwritten, and pages missing from `docs/wiki/` are deleted.
 
 ## Publish automatically on GitHub
 
@@ -31,7 +31,3 @@ For GitLab use `https://gitlab.com/cn-solutions/privometry/privometry-oss.wiki.g
 - Put code behavior and flags in the same pull request as their documentation changes.
 - Avoid customer names, internal URLs, tokens, screenshots containing data, or unpublished security details.
 - Verify links and command examples before publishing.
-
-## GitLab automation
-
-A future GitLab CI job can run the same script after changes merge to `main`. Use a narrowly scoped project access token with repository write access, protect the wiki branch, and require the same documentation review that applies to repository changes.

@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/daemon"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/ipc"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/timeline"
+	"github.com/privometry/privometry-oss/internal/daemon"
+	"github.com/privometry/privometry-oss/internal/ipc"
+	"github.com/privometry/privometry-oss/internal/timeline"
 )
 
 // replay feeds documented payloads (test/fixtures/<agent>/documented/hooks)

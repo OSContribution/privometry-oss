@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/platform"
+	"github.com/privometry/privometry-oss/internal/platform"
 )
 
 func TestDefinitionsCmd(t *testing.T) {
@@ -33,7 +33,7 @@ func TestDefinitionsCmd(t *testing.T) {
 		code int
 		out  string
 	}{
-		{"status", []string{"status"}, 0, "Adapter definitions: built-in set 5\nDetector packs: built-in set 2\n"},
+		{"status", []string{"status"}, 0, "Adapter definitions: built-in set 5\nDetector packs: built-in set 3\n"},
 		{"status json", []string{"status", "--format", "json"}, 0, `"source": "built-in"`},
 		{"install without release keys", []string{"install", "--no-restart", signed}, 1, "no release signing keys"},
 		{"install another artifact", []string{"install", garbage}, 1, "not an adapter set or a detector pack set"},

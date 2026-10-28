@@ -11,14 +11,14 @@ import (
 	"testing"
 	"time"
 
-	adapterdefs "gitlab.com/cn-solutions/privometry/privometry-oss/adapter-defs"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/adapters/registry"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/contract"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/daemon"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/guard"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/ipc"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/platform"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/timeline"
+	adapterdefs "github.com/privometry/privometry-oss/adapter-defs"
+	"github.com/privometry/privometry-oss/internal/adapters/registry"
+	"github.com/privometry/privometry-oss/internal/contract"
+	"github.com/privometry/privometry-oss/internal/daemon"
+	"github.com/privometry/privometry-oss/internal/guard"
+	"github.com/privometry/privometry-oss/internal/ipc"
+	"github.com/privometry/privometry-oss/internal/platform"
+	"github.com/privometry/privometry-oss/internal/timeline"
 )
 
 // procTable is a fake process table.

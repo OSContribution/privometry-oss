@@ -8,10 +8,10 @@ import (
 	"slices"
 	"strings"
 
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/adapters/registry"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/contract"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/policy"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/scanner/posture"
+	"github.com/privometry/privometry-oss/internal/adapters/registry"
+	"github.com/privometry/privometry-oss/internal/contract"
+	"github.com/privometry/privometry-oss/internal/policy"
+	"github.com/privometry/privometry-oss/internal/scanner/posture"
 )
 
 // ParseChanges reads the files a merge or pull request changes: one per

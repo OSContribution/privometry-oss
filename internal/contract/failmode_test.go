@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/contract"
+	"github.com/privometry/privometry-oss/internal/contract"
 )
 
 func TestDefaultFailModes(t *testing.T) {

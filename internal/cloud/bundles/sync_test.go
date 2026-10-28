@@ -9,12 +9,12 @@ import (
 	"testing"
 	"time"
 
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/cloud/bundles"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/cloud/cloudtest"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/cloud/enroll"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/cloud/keyset"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/keystore"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/platform"
+	"github.com/privometry/privometry-oss/internal/cloud/bundles"
+	"github.com/privometry/privometry-oss/internal/cloud/cloudtest"
+	"github.com/privometry/privometry-oss/internal/cloud/enroll"
+	"github.com/privometry/privometry-oss/internal/cloud/keyset"
+	"github.com/privometry/privometry-oss/internal/keystore"
+	"github.com/privometry/privometry-oss/internal/platform"
 )
 
 const policyYAML = `schema: privometry.policy/v1

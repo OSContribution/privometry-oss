@@ -8,13 +8,13 @@ import (
 	"strings"
 	"time"
 
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/cloud"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/cloud/approvals"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/cloud/bundles"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/contract"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/events"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/policy"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/policy/intent"
+	"github.com/privometry/privometry-oss/internal/cloud"
+	"github.com/privometry/privometry-oss/internal/cloud/approvals"
+	"github.com/privometry/privometry-oss/internal/cloud/bundles"
+	"github.com/privometry/privometry-oss/internal/contract"
+	"github.com/privometry/privometry-oss/internal/events"
+	"github.com/privometry/privometry-oss/internal/policy"
+	"github.com/privometry/privometry-oss/internal/policy/intent"
 )
 
 // Remote approvals (PRD CP-21; docs/spikes/remote-approvals.md): a hook

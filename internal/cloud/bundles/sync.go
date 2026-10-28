@@ -14,13 +14,13 @@ import (
 	"strings"
 	"time"
 
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/cloud/enroll"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/cloud/entitlements"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/cloud/keyset"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/keystore"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/platform"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/signing"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/specs"
+	"github.com/privometry/privometry-oss/internal/cloud/enroll"
+	"github.com/privometry/privometry-oss/internal/cloud/entitlements"
+	"github.com/privometry/privometry-oss/internal/cloud/keyset"
+	"github.com/privometry/privometry-oss/internal/keystore"
+	"github.com/privometry/privometry-oss/internal/platform"
+	"github.com/privometry/privometry-oss/internal/signing"
+	"github.com/privometry/privometry-oss/specs"
 )
 
 // Signed bundles (PRD EDGE-27): GET /edge/v1/bundle, verified with the policy

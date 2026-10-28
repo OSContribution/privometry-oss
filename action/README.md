@@ -11,7 +11,7 @@ Findings appear as pull request annotations, in the job summary and in a SARIF r
 
 ## Usage
 
-GitHub resolves `uses:` only from GitHub repositories, so use the action from Privometry's GitHub mirror (or a fork of it). On GitLab, run the commands at the end of this page in a merge request pipeline job.
+Use it as `privometry/privometry-oss/action@<tag>`. On GitLab, run the commands at the end of this page in a merge request pipeline job.
 
 ```yaml
 name: privometry

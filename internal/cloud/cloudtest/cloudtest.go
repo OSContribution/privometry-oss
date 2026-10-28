@@ -26,10 +26,10 @@ import (
 	"testing"
 	"time"
 
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/cloud"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/contract"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/signing"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/specs"
+	"github.com/privometry/privometry-oss/internal/cloud"
+	"github.com/privometry/privometry-oss/internal/contract"
+	"github.com/privometry/privometry-oss/internal/signing"
+	"github.com/privometry/privometry-oss/specs"
 )
 
 // Region holds a region's signing keys and its key set signed by root.

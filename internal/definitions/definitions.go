@@ -38,15 +38,15 @@ import (
 	"strings"
 	"time"
 
-	adapterdefs "gitlab.com/cn-solutions/privometry/privometry-oss/adapter-defs"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/detectorpacks"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/adapters/registry"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/content"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/contract"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/platform"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/signing"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/trust"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/specs"
+	adapterdefs "github.com/privometry/privometry-oss/adapter-defs"
+	"github.com/privometry/privometry-oss/detectorpacks"
+	"github.com/privometry/privometry-oss/internal/adapters/registry"
+	"github.com/privometry/privometry-oss/internal/content"
+	"github.com/privometry/privometry-oss/internal/contract"
+	"github.com/privometry/privometry-oss/internal/platform"
+	"github.com/privometry/privometry-oss/internal/signing"
+	"github.com/privometry/privometry-oss/internal/trust"
+	"github.com/privometry/privometry-oss/specs"
 )
 
 // Kind is one of the two signed sets.
@@ -73,7 +73,7 @@ const DirName = "definitions"
 // DefaultBaseURL is where privometry definitions update downloads
 // adapters.json and detectorpacks.json: the latest release's direct assets.
 // PRIVOMETRY_DEFINITIONS_URL or --url override it.
-const DefaultBaseURL = "https://gitlab.com/cn-solutions/privometry/privometry-oss/-/releases/permalink/latest/downloads"
+const DefaultBaseURL = "https://github.com/privometry/privometry-oss/releases/latest/download"
 
 // maxSet bounds a downloaded or installed set.
 const maxSet = 8 << 20

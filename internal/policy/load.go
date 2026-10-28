@@ -10,14 +10,14 @@ import (
 
 	"go.yaml.in/yaml/v3"
 
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/cloud/bundles"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/content"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/platform"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/policy/compiler"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/policy/merge"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/policy/rulepack"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/rulepacks"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/specs"
+	"github.com/privometry/privometry-oss/internal/cloud/bundles"
+	"github.com/privometry/privometry-oss/internal/content"
+	"github.com/privometry/privometry-oss/internal/platform"
+	"github.com/privometry/privometry-oss/internal/policy/compiler"
+	"github.com/privometry/privometry-oss/internal/policy/merge"
+	"github.com/privometry/privometry-oss/internal/policy/rulepack"
+	"github.com/privometry/privometry-oss/rulepacks"
+	"github.com/privometry/privometry-oss/specs"
 )
 
 // BuiltinPacks returns the rule packs shipped in the sensor.

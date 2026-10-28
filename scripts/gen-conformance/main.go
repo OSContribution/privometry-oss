@@ -24,13 +24,13 @@ import (
 
 	"go.yaml.in/yaml/v3"
 
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/cloud/bundles"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/community"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/contract"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/policy/compiler"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/riskfeed"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/signing"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/specs"
+	"github.com/privometry/privometry-oss/internal/cloud/bundles"
+	"github.com/privometry/privometry-oss/internal/community"
+	"github.com/privometry/privometry-oss/internal/contract"
+	"github.com/privometry/privometry-oss/internal/policy/compiler"
+	"github.com/privometry/privometry-oss/internal/riskfeed"
+	"github.com/privometry/privometry-oss/internal/signing"
+	"github.com/privometry/privometry-oss/specs"
 )
 
 const (

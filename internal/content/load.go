@@ -17,7 +17,7 @@ import (
 	"sort"
 	"strings"
 
-	"gitlab.com/cn-solutions/privometry/privometry-oss/specs"
+	"github.com/privometry/privometry-oss/specs"
 )
 
 // Pack is a loaded, compiled detector pack.

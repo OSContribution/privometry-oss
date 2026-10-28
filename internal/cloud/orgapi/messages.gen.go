@@ -3,9 +3,9 @@
 package orgapi
 
 import (
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/cloud/entitlements"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/contract"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/events"
+	"github.com/privometry/privometry-oss/internal/cloud/entitlements"
+	"github.com/privometry/privometry-oss/internal/contract"
+	"github.com/privometry/privometry-oss/internal/events"
 )
 
 // PolicyScope is generated from org-api/v1/messages.schema.json#/$defs/PolicyScope.

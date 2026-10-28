@@ -28,13 +28,13 @@ import (
 	"strings"
 	"time"
 
-	adapterdefs "gitlab.com/cn-solutions/privometry/privometry-oss/adapter-defs"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/adapters/registry"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/contract"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/guard"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/platform"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/redact"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/scanner/parsers"
+	adapterdefs "github.com/privometry/privometry-oss/adapter-defs"
+	"github.com/privometry/privometry-oss/internal/adapters/registry"
+	"github.com/privometry/privometry-oss/internal/contract"
+	"github.com/privometry/privometry-oss/internal/guard"
+	"github.com/privometry/privometry-oss/internal/platform"
+	"github.com/privometry/privometry-oss/internal/redact"
+	"github.com/privometry/privometry-oss/internal/scanner/parsers"
 )
 
 // replies are written on stdout for agents that expect a JSON reply even

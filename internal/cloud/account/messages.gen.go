@@ -3,7 +3,7 @@
 package account
 
 import (
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/contract"
+	"github.com/privometry/privometry-oss/internal/contract"
 )
 
 // APIKeyRole is generated from account-api/v1/messages.schema.json#/$defs/api_key_role.

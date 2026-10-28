@@ -10,12 +10,12 @@ import (
 	"strings"
 	"time"
 
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/adapters/registry"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/content"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/contract"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/events"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/ipc"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/riskfeed"
+	"github.com/privometry/privometry-oss/internal/adapters/registry"
+	"github.com/privometry/privometry-oss/internal/content"
+	"github.com/privometry/privometry-oss/internal/contract"
+	"github.com/privometry/privometry-oss/internal/events"
+	"github.com/privometry/privometry-oss/internal/ipc"
+	"github.com/privometry/privometry-oss/internal/riskfeed"
 )
 
 // MCP tool calls relayed by privometry-mcp-shim (PRD EDGE-25). The shim wraps a

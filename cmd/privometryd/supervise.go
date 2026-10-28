@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/daemon"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/platform"
+	"github.com/privometry/privometry-oss/internal/daemon"
+	"github.com/privometry/privometry-oss/internal/platform"
 )
 
 // supervise runs privometryd without -supervise and starts it again whenever

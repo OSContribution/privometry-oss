@@ -12,11 +12,11 @@ import (
 	"strings"
 	"time"
 
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/contract"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/events"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/guard"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/redact"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/timeline"
+	"github.com/privometry/privometry-oss/internal/contract"
+	"github.com/privometry/privometry-oss/internal/events"
+	"github.com/privometry/privometry-oss/internal/guard"
+	"github.com/privometry/privometry-oss/internal/redact"
+	"github.com/privometry/privometry-oss/internal/timeline"
 )
 
 // Files in the data directory that say whether privometryd was running.

@@ -8,7 +8,7 @@ import (
 	"runtime"
 	"testing"
 
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/platform"
+	"github.com/privometry/privometry-oss/internal/platform"
 )
 
 func fileEnv(t *testing.T) (platform.Env, string) {

@@ -7,10 +7,10 @@ import (
 	"fmt"
 	"slices"
 
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/cloud/bundles"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/policy/engine"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/policy/intent"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/policy/merge"
+	"github.com/privometry/privometry-oss/internal/cloud/bundles"
+	"github.com/privometry/privometry-oss/internal/policy/engine"
+	"github.com/privometry/privometry-oss/internal/policy/intent"
+	"github.com/privometry/privometry-oss/internal/policy/merge"
 )
 
 // Policy is a merged policy ready to decide.

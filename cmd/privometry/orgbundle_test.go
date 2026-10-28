@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/cloud/cloudtest"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/platform"
+	"github.com/privometry/privometry-oss/internal/cloud/cloudtest"
+	"github.com/privometry/privometry-oss/internal/platform"
 )
 
 func TestBundleSyncAndStatus(t *testing.T) {

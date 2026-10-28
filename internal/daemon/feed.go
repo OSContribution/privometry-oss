@@ -7,11 +7,11 @@ import (
 	"slices"
 	"strings"
 
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/cloud/inventory"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/contract"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/policy"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/policy/intent"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/riskfeed"
+	"github.com/privometry/privometry-oss/internal/cloud/inventory"
+	"github.com/privometry/privometry-oss/internal/contract"
+	"github.com/privometry/privometry-oss/internal/policy"
+	"github.com/privometry/privometry-oss/internal/policy/intent"
+	"github.com/privometry/privometry-oss/internal/riskfeed"
 )
 
 // The risk feed on MCP calls (PRD CP-22; riskfeed/v1 draft.2): the

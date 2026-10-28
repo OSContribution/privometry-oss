@@ -10,13 +10,13 @@ import (
 	"testing"
 	"time"
 
-	adapterdefs "gitlab.com/cn-solutions/privometry/privometry-oss/adapter-defs"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/adapters/registry"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/daemon"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/ipc"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/platform"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/policy"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/timeline"
+	adapterdefs "github.com/privometry/privometry-oss/adapter-defs"
+	"github.com/privometry/privometry-oss/internal/adapters/registry"
+	"github.com/privometry/privometry-oss/internal/daemon"
+	"github.com/privometry/privometry-oss/internal/ipc"
+	"github.com/privometry/privometry-oss/internal/platform"
+	"github.com/privometry/privometry-oss/internal/policy"
+	"github.com/privometry/privometry-oss/internal/timeline"
 )
 
 func memoryOp(t *testing.T, d *daemon.Daemon, q daemon.MemoryQuery, out any) error {

@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/policy/packtest"
+	"github.com/privometry/privometry-oss/internal/policy/packtest"
 )
 
 func TestPacks(t *testing.T) {

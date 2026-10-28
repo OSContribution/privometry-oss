@@ -1,5 +1,5 @@
-# Cross-platform release builds. Publishing remains disabled until the production
-# release trust root and signing-key custody are approved.
+# Cross-platform release builds. .github/workflows/release.yml runs this with
+# --skip=publish, signs the result and publishes the GitHub release itself.
 version: 2
 project_name: privometry
 
@@ -17,9 +17,9 @@ builds:
     flags: [-trimpath]
     ldflags:
       - -s -w
-      - -X gitlab.com/cn-solutions/privometry/privometry-oss/internal/buildinfo.Version={{.Version}}
-      - -X gitlab.com/cn-solutions/privometry/privometry-oss/internal/buildinfo.Commit={{.ShortCommit}}
-      - -X gitlab.com/cn-solutions/privometry/privometry-oss/internal/buildinfo.Date={{.Date}}
+      - -X github.com/privometry/privometry-oss/internal/buildinfo.Version={{.Version}}
+      - -X github.com/privometry/privometry-oss/internal/buildinfo.Commit={{.ShortCommit}}
+      - -X github.com/privometry/privometry-oss/internal/buildinfo.Date={{.Date}}
     goos: [darwin, linux, windows]
     goarch: [amd64, arm64]
   - <<: *bin
@@ -36,9 +36,9 @@ builds:
     goos: [windows]
     ldflags:
       - -s -w -H=windowsgui
-      - -X gitlab.com/cn-solutions/privometry/privometry-oss/internal/buildinfo.Version={{.Version}}
-      - -X gitlab.com/cn-solutions/privometry/privometry-oss/internal/buildinfo.Commit={{.ShortCommit}}
-      - -X gitlab.com/cn-solutions/privometry/privometry-oss/internal/buildinfo.Date={{.Date}}
+      - -X github.com/privometry/privometry-oss/internal/buildinfo.Version={{.Version}}
+      - -X github.com/privometry/privometry-oss/internal/buildinfo.Commit={{.ShortCommit}}
+      - -X github.com/privometry/privometry-oss/internal/buildinfo.Date={{.Date}}
   - <<: *bin
     id: privometry-hook
     main: ./cmd/privometry-hook
@@ -62,9 +62,9 @@ scoops:
   - name: privometry
     skip_upload: true
     repository:
-      owner: cn-solutions/privometry
+      owner: privometry
       name: scoop-bucket
-    homepage: https://gitlab.com/cn-solutions/privometry/privometry-oss
+    homepage: https://github.com/privometry/privometry-oss
     description: Local guard and scanner for AI coding agents
     license: Apache-2.0
     post_install:
@@ -74,4 +74,4 @@ checksum:
   name_template: checksums.txt
 
 changelog:
-  use: gitlab
+  use: github

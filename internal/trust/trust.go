@@ -9,7 +9,7 @@ import (
 	"errors"
 	"io/fs"
 
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/signing"
+	"github.com/privometry/privometry-oss/internal/signing"
 )
 
 // ErrNoReleaseKeys means this build carries no release keys, so it cannot
