@@ -9,6 +9,7 @@
   var LABELS = { allow: 'Allowed', auto: 'Auto-approved', ask: 'Asked', deny: 'Blocked', prompt: 'Query detected', config: 'Config changed', alert: 'Alert', failmode: 'Fail mode', inventory: 'Inventory', finding: 'Finding' };
   var KINDS = { shell_exec: 'Shell command', file_read: 'File read', file_write: 'File write', file_delete: 'File delete', mcp_call: 'MCP call', network_fetch: 'Network fetch', web_search: 'Web search', subagent_spawn: 'Subagent' };
   var VIEWS = ['timeline', 'sessions', 'scan', 'policy', 'device'];
+  var TITLES = { timeline: 'Timeline', sessions: 'Sessions', scan: 'Scan', policy: 'Policy', device: 'Device' };
   var POLL_MS = 2000, SUMMARY_MS = 10000;
 
   var state = {
@@ -63,11 +64,6 @@
     return svg('svg', { class: 'ic', width: 12, height: 12, viewBox: '0 0 12 12', 'aria-hidden': 'true' }, [s]);
   }
   function pill(text, cls, dot) { return h('span', { class: 'pill' + (cls ? ' ' + cls : '') }, [dot ? h('span', { class: 'dot' + (dot === 'off' ? ' off' : '') }) : null, text]); }
-  function txt(parts) { // [['plain'], ['bold', 1]] → text with <b> parts
-    var f = document.createDocumentFragment();
-    parts.forEach(function (p) { f.appendChild(p[1] ? h('b', { text: p[0] }) : document.createTextNode(p[0])); });
-    return f;
-  }
 
   /* ---------- formatting ---------- */
   function agentName(a) { return AGENTS[a] || a || ''; }
@@ -125,20 +121,23 @@
 
   /* ---------- shell ---------- */
   function guarded() { return (state.agents || []).filter(function (a) { return a.state === 'installed'; }); }
+  // guardPill is the one-line protection state, shown in the sidebar and on the timeline's header.
+  function guardPill() {
+    var d = state.summary && state.summary.daemon;
+    if (!state.summary) return null;
+    if (d && !d.running) return pill('privometryd not running', 'block');
+    if (state.agents && guarded().length === 0) return pill('No agent is hooked', 'ask');
+    if (!state.agents) return null;
+    var n = guarded().length;
+    return pill('Guarding ' + (n === 1 ? guarded()[0].name : n + ' agents'), 'ok', true);
+  }
   function renderStatus() {
-    var d = state.summary && state.summary.daemon, s = $('status'), m = $('mstatus');
-    s.textContent = ''; m.textContent = '';
+    var s = $('status');
+    s.textContent = '';
     if (!state.summary) return;
-    var p, short;
-    if (d && !d.running) { p = pill('privometryd not running', 'block'); short = pill('Not running', 'block'); }
-    else if (state.agents && guarded().length === 0) { p = pill('No agent is hooked', 'ask'); short = pill('Not guarding', 'ask'); }
-    else if (state.agents) {
-      var n = guarded().length;
-      p = pill('Guarding ' + (n === 1 ? guarded()[0].name : n + ' agents'), 'ok', true);
-      short = pill('Guarding', 'ok', true);
-    }
-    if (p) { s.appendChild(p); m.appendChild(short); }
-    if (state.summary.host) $('host').textContent = 'on ' + state.summary.host;
+    var p = guardPill();
+    if (p) s.appendChild(p);
+    if (state.summary.host) { $('host').textContent = state.summary.host; $('crumb-host').textContent = state.summary.host; $('tile').textContent = state.summary.host.slice(0, 1); }
     if (state.summary.user) { $('user').textContent = state.summary.user; $('avatar').textContent = state.summary.user.slice(0, 2); }
   }
   function setView(v, focus) {
@@ -147,6 +146,8 @@
     document.querySelectorAll('#nav button').forEach(function (b) {
       if (b.dataset.view === v) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
     });
+    $('crumb-view').textContent = TITLES[v];
+    document.title = TITLES[v] + ' · Privometry local guard';
     $('shell').classList.remove('menu-open');
     render();
     if (focus) { $('scroller').scrollTop = 0; $('main').focus({ preventScroll: true }); }
@@ -158,6 +159,12 @@
   }
   function section(title, body, aside) {
     return h('section', {}, [h('div', { class: 'sec-h' }, [h('h2', { text: title }), aside || null]), body]);
+  }
+  // pageHead is the console's page header: title with a state badge, a lede, and an action on the right.
+  function pageHead(title, lede, badge, action) {
+    return h('div', { class: 'page-head' }, [
+      h('div', { class: 'ph-text' }, [h('div', { class: 'title-state' }, [h('h1', { class: 'page-title', text: title }), badge || null]), lede ? h('p', { class: 'lede', text: lede }) : null]),
+      action || null]);
   }
   function loading(text) { return h('div', { class: 'panel' }, [h('div', { class: 'empty', text: text })]); }
 
@@ -258,21 +265,38 @@
       return h('div', { class: 'agent-chip' + (on ? '' : ' off') }, [h('span', { class: 'dot' + (on && c ? '' : ' off') }), a.name, h('small', { class: 'num', text: note })]);
     }));
   }
+  function timelineHead() {
+    var badge = h('span', { class: 'badge-slot', id: 'guard' }, [guardPill()]);
+    return pageHead('Timeline', 'Every action your coding agents took on this machine, and what Privometry decided.', badge);
+  }
+  function metric(label, tone, value, caption) {
+    return h('div', { class: 'metric' }, [h('div', { class: 'metric-head' }, [h('span', { class: 'mdot ' + tone }), label]), h('strong', { class: 'num', text: value }), h('small', { text: caption })]);
+  }
+  function metrics() {
+    var s = state.summary, t = s && s.tally;
+    if (!t || s.empty || !t.actions) return h('div', { class: 'metrics', id: 'metrics', hidden: true });
+    var ms = t.avg_latency_ms ? Math.max(1, Math.round(t.avg_latency_ms)) + ' ms' : '-';
+    return h('div', { class: 'metrics', id: 'metrics' }, [
+      metric('Approved', 'ok', fmt(t.actions - t.asked - t.blocked), 'without interrupting you'),
+      metric('Asked', 'ask', fmt(t.asked), 'waited for your answer'),
+      metric('Blocked', 'block', fmt(t.blocked), 'stopped before running'),
+      metric('Decision time', 'brand', ms, 'on average, offline')]);
+  }
   function tally() {
     var p = h('p', { class: 'tally', id: 'tally', 'aria-live': 'polite' });
     var s = state.summary;
     if (!s) return p;
     var t = s.tally;
     if (s.empty || !t.actions) { p.textContent = s.empty ? 'Privometry has not recorded anything on this machine yet.' : 'No agent actions today yet. Decisions work offline and never leave this machine.'; return p; }
-    var parts = [['Today Privometry approved '], [fmt(t.actions - t.asked - t.blocked), 1], [' actions without interrupting you, asked you '], [fmt(t.asked), 1], [' times and blocked '], [fmt(t.blocked), 1], ['.']];
-    if (t.avg_latency_ms) parts.push([' Decisions take about '], [Math.max(1, Math.round(t.avg_latency_ms)) + ' ms', 1], [' and work offline.']);
-    p.appendChild(txt(parts));
+    p.hidden = true; // the metric cards say it
     return p;
   }
   function viewTimeline(main) {
+    main.appendChild(timelineHead());
     var b = banner(); if (b) main.appendChild(b);
-    main.appendChild(agentChips());
+    main.appendChild(metrics());
     main.appendChild(tally());
+    main.appendChild(agentChips());
     var q = h('input', { class: 'input', id: 'q', type: 'search', placeholder: 'Search commands, files or rules', autocomplete: 'off', spellcheck: 'false', value: state.search });
     var chips = h('div', { class: 'chips', role: 'group', 'aria-label': 'Show' }, [['all', 'Everything'], ['exc', 'Asks and blocks'], ['ask', 'Asked', 'ask'], ['deny', 'Blocked', 'deny']].map(function (c) {
       return h('button', { type: 'button', class: 'chip', 'data-show': c[0], 'aria-pressed': String(state.show === c[0]) }, [c[2] ? glyph(c[2]) : null, c[1]]);
@@ -332,8 +356,7 @@
 
   /* ---------- sessions ---------- */
   function viewSessions(main) {
-    main.appendChild(h('h1', { class: 'page-title', text: 'Sessions' }));
-    main.appendChild(h('p', { class: 'lede', text: 'Each agent session Privometry has seen on this machine, most recently active first. A session that read untrusted content asks before uploads; one that read injected instructions cannot edit memory files.' }));
+    main.appendChild(pageHead('Sessions', 'Each agent session Privometry has seen on this machine, most recently active first. A session that read untrusted content asks before uploads; one that read injected instructions cannot edit memory files.'));
     var panel = h('div', { class: 'panel rows', id: 'sessions' });
     main.appendChild(panel);
     function fill() {
@@ -367,8 +390,9 @@
   function sevPill(s) { return pill(s, s === 'critical' || s === 'high' ? 'block' : s === 'medium' ? 'ask' : ''); }
   function viewScan(main) {
     var btn = h('button', { type: 'button', class: 'btn btn-ink', id: 'scan-now' }, [icon('refresh', 15), h('span', { text: 'Scan now' })]);
-    var lede = h('p', { class: 'lede', text: 'Coding agents, MCP servers, hooks and memory files on this machine, and anything worth fixing.' });
-    main.appendChild(h('div', { class: 'title-row' }, [h('div', {}, [h('h1', { class: 'page-title', text: 'Scan' }), lede]), btn]));
+    var head = pageHead('Scan', 'Coding agents, MCP servers, hooks and memory files on this machine, and anything worth fixing.', null, btn);
+    var lede = head.querySelector('.lede'), badge = head.querySelector('.title-state');
+    main.appendChild(head);
     var body = h('div', { class: 'stack', id: 'scan-body' });
     main.appendChild(body);
     function fill() {
@@ -384,6 +408,8 @@
       }));
       var count = $('scan-count');
       count.hidden = !fixes.length; count.textContent = String(fixes.length);
+      if (badge.childNodes.length > 1) badge.lastChild.remove();
+      badge.appendChild(fixes.length ? pill(plural(fixes.length, 'thing') + ' to fix', 'ask') : pill('All clear', 'ok'));
       body.appendChild(section('Worth fixing', h('div', { class: 'panel rows' }, fixes.length ? fixes : [h('div', { class: 'row' }, [h('span', { class: 'ok-i' }, [icon('check', 18)]),
         h('div', { class: 'grow' }, [h('div', { class: 't', text: 'Nothing worth fixing' }), h('small', { text: 'No risky settings, and nothing found in memory files, skills or configs.' })])])])));
       body.appendChild(section('Coding agents', h('div', { class: 'panel rows' }, (s.agents || []).map(function (a) {
@@ -442,8 +468,7 @@
   }
   var LAYER_NAMES = { builtin: 'Built-in', user: 'Yours', repo: 'Repo', org: 'Organization' };
   function viewPolicy(main) {
-    main.appendChild(h('h1', { class: 'page-title', text: 'Policy' }));
-    main.appendChild(h('p', { class: 'lede', text: 'Rules from these sources apply together. When they disagree, the strictest verdict wins: block beats ask, and ask beats allow.' }));
+    main.appendChild(pageHead('Policy', 'Rules from these sources apply together. When they disagree, the strictest verdict wins: block beats ask, and ask beats allow.'));
     var body = h('div', { class: 'stack' });
     main.appendChild(body);
     function fill() {
@@ -481,7 +506,7 @@
   /* ---------- device ---------- */
   var CHECK_ICON = { ok: ['check', 'ok-i'], warn: ['alert', 'sev medium'], fail: ['x', 'sev high'], skip: ['minus', 'muted'] };
   function viewDevice(main) {
-    main.appendChild(h('div', { class: 'title-row' }, [h('div', {}, [h('h1', { class: 'page-title', text: 'Device' }), h('p', { class: 'lede', text: 'This machine, what Privometry keeps here, and whether protection is working.' })])]));
+    main.appendChild(pageHead('Device', 'This machine, what Privometry keeps here, and whether protection is working.', pill('Local only', '', 'off')));
     var body = h('div', { class: 'stack' });
     main.appendChild(body);
     function fill() {
@@ -489,7 +514,7 @@
       var d = state.device;
       var kv = [['Machine', d.host], ['User', d.user], ['System', d.os + ' ' + d.arch], ['Device ID', d.device_id || 'Assigned when privometryd first runs'], ['Sensor', d.version],
         ['privometryd', d.daemon ? 'Running since ' + ago(d.daemon.started_at) + ' (pid ' + d.daemon.pid + ')' : 'Not running'], ['Organization', 'Not connected. Privometry Free keeps everything on this machine.']];
-      var device = h('section', {}, [h('div', { class: 'sec-h' }, [h('h2', { text: 'This device' }), h('span', { class: 'aside' }, [pill('Local only', '', 'off')])]),
+      var device = h('section', {}, [h('div', { class: 'sec-h' }, [h('h2', { text: 'This device' })]),
         h('div', { class: 'panel' }, [h('dl', { class: 'kv' }, kv.reduce(function (a, x) { a.push(h('dt', { text: x[0] }), h('dd', { class: x[0] === 'Device ID' ? 'mono' : null, text: x[1] || '-' })); return a; }, []))])]);
       var local = h('section', {}, [h('div', { class: 'sec-h' }, [h('h2', { text: 'Local data' })]), h('div', { class: 'panel rows' }, [
         h('div', { class: 'setting' }, [h('span', { text: 'What the timeline stores' }), h('p', { text: 'Commands and paths after secrets, personal paths, and other sensitive values are redacted.' })]),
@@ -517,7 +542,9 @@
       if (state.view !== 'timeline') return;
       var main = $('main');
       var oldB = main.querySelector(':scope > .l-banner'), b = banner();
-      if (oldB && b) oldB.replaceWith(b); else if (oldB) oldB.remove(); else if (b) main.insertBefore(b, main.firstChild);
+      if (oldB && b) oldB.replaceWith(b); else if (oldB) oldB.remove(); else if (b) main.querySelector('.page-head').after(b);
+      var g = $('guard'); if (g) { g.textContent = ''; var p = guardPill(); if (p) g.appendChild(p); }
+      var m = $('metrics'); if (m) m.replaceWith(metrics());
       var a = $('agents'); if (a) a.replaceWith(agentChips());
       var t = $('tally'); if (t) t.replaceWith(tally());
     }).catch(function () {});
