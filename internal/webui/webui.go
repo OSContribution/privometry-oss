@@ -10,7 +10,8 @@
 //   - the Host header must name the loopback address and port, which stops
 //     DNS rebinding;
 //   - cross-site requests and every method but GET and HEAD are refused;
-//   - a strict Content-Security-Policy allows only the page's own files.
+//   - a strict Content-Security-Policy allows only the page's own files,
+//     fonts included.
 package webui
 
 import (
@@ -125,7 +126,7 @@ func (s *Server) Handler(port int) http.Handler {
 	mux.Handle("/", static)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
-		h.Set("Content-Security-Policy", "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'")
+		h.Set("Content-Security-Policy", "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'")
 		h.Set("X-Content-Type-Options", "nosniff")
 		h.Set("Referrer-Policy", "no-referrer")
 		h.Set("Cache-Control", "no-store")

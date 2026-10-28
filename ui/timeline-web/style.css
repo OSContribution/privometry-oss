@@ -1,7 +1,11 @@
 /* The local guard, in the Privometry website's theme: the same palette,
    type (Manrope headings, Inter text, IBM Plex Mono labels) and controls.
-   The page's Content-Security-Policy loads no fonts, so each family falls
-   back to the system's own when it is not installed. */
+   The fonts ship in the binary (fonts/, SIL Open Font License), so the
+   page needs nothing from the network. */
+@font-face { font-family: 'Inter'; src: url('fonts/inter-latin-var.woff2') format('woff2'); font-weight: 100 900; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Manrope'; src: url('fonts/manrope-latin-var.woff2') format('woff2'); font-weight: 200 800; font-style: normal; font-display: swap; }
+@font-face { font-family: 'IBM Plex Mono'; src: url('fonts/ibm-plex-mono-latin-400.woff2') format('woff2'); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: 'IBM Plex Mono'; src: url('fonts/ibm-plex-mono-latin-500.woff2') format('woff2'); font-weight: 500 700; font-style: normal; font-display: swap; }
 :root {
   --canvas:#F9FAFB; --surface:#FFFFFF; --sunken:#F2F4F7; --line:#EAECF0; --line-strong:#D0D5DD;
   --ink:#101828; --ink-2:#344054; --muted:#667085; --faint:#98A2B3;

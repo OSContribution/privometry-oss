@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -240,6 +241,21 @@ func TestEmbeddedPage(t *testing.T) {
 	}
 	if strings.Contains(do(h, "GET", "/app.js", cookie(srv)).Body.String(), "innerHTML") {
 		t.Error("app.js must build the page with textContent, not innerHTML")
+	}
+	// Every font the stylesheet names ships in the binary, and the policy
+	// loads fonts from the page itself only.
+	if csp := w.Header().Get("Content-Security-Policy"); !strings.Contains(csp, "font-src 'self';") {
+		t.Errorf("fonts must come from the page itself: %q", csp)
+	}
+	urls := regexp.MustCompile(`url\('(fonts/[^']+)'\)`).FindAllStringSubmatch(do(h, "GET", "/style.css", cookie(srv)).Body.String(), -1)
+	if len(urls) != 4 {
+		t.Errorf("style.css declares %d fonts, want 4", len(urls))
+	}
+	for _, u := range urls {
+		f := do(h, "GET", "/"+u[1], cookie(srv))
+		if f.Code != http.StatusOK || f.Header().Get("Content-Type") != "font/woff2" || f.Body.Len() < 10000 {
+			t.Errorf("%s: %d %q, %d bytes", u[1], f.Code, f.Header().Get("Content-Type"), f.Body.Len())
+		}
 	}
 }
 
