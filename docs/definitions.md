@@ -17,7 +17,7 @@ privometry definitions update                  # download adapters.json and dete
 privometry definitions install adapters.json   # install a downloaded set (offline machines)
 ```
 
-`update` downloads from the latest release's direct assets on GitLab (`definitions.DefaultBaseURL`); `--url` or `PRIVOMETRY_DEFINITIONS_URL` point it at another folder, HTTPS only. Installed sets live in `~/.privometry/definitions/` (mode 0600). After an install the daemon service is restarted so it loads them; `--no-restart` skips that. `privometry doctor` reports the sets in use and warns when an installed set is ignored.
+`update` downloads from the latest GitHub release's assets (`definitions.DefaultBaseURL`); `--url` or `PRIVOMETRY_DEFINITIONS_URL` point it at another folder, HTTPS only. Installed sets live in `~/.privometry/definitions/` (mode 0600). After an install the daemon service is restarted so it loads them; `--no-restart` skips that. `privometry doctor` reports the sets in use and warns when an installed set is ignored.
 
 ## When a set is used
 

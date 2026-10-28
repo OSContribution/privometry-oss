@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/ipc"
+	"github.com/privometry/privometry-oss/internal/ipc"
 )
 
 func pipeName(t *testing.T) string {

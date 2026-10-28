@@ -14,7 +14,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"gitlab.com/cn-solutions/privometry/privometry-oss/specs"
+	"github.com/privometry/privometry-oss/specs"
 )
 
 // accountProof is a CLI key's DSSE proof (account-api/v1 Proof).

@@ -12,11 +12,11 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/daemon"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/guard"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/ipc"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/platform"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/timeline"
+	"github.com/privometry/privometry-oss/internal/daemon"
+	"github.com/privometry/privometry-oss/internal/guard"
+	"github.com/privometry/privometry-oss/internal/ipc"
+	"github.com/privometry/privometry-oss/internal/platform"
+	"github.com/privometry/privometry-oss/internal/timeline"
 )
 
 const memoryUsage = `Usage: privometry memory <list|history|show|diff|restore> [flags]

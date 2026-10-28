@@ -8,7 +8,7 @@ import (
 
 	"go.yaml.in/yaml/v3"
 
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/redact"
+	"github.com/privometry/privometry-oss/internal/redact"
 )
 
 // TestVectors runs specs/conformance/redaction/vectors.yaml. Inputs may hold

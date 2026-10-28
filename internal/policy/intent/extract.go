@@ -7,7 +7,7 @@ import (
 	"slices"
 	"strings"
 
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/policy/facts"
+	"github.com/privometry/privometry-oss/internal/policy/facts"
 )
 
 // Action is one agent tool call, already mapped to an action kind by the

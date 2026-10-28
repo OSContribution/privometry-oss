@@ -18,10 +18,10 @@ import (
 	"testing"
 	"time"
 
-	adapterdefs "gitlab.com/cn-solutions/privometry/privometry-oss/adapter-defs"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/detectorpacks"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/definitions"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/signing"
+	adapterdefs "github.com/privometry/privometry-oss/adapter-defs"
+	"github.com/privometry/privometry-oss/detectorpacks"
+	"github.com/privometry/privometry-oss/internal/definitions"
+	"github.com/privometry/privometry-oss/internal/signing"
 )
 
 var now = time.Date(2026, 10, 24, 12, 0, 0, 0, time.UTC)
@@ -324,6 +324,7 @@ var builtInDigests = map[string]string{
 	"adapters 5":      "sha256:51f543b4c59231ab28d693af62b509f8da73c31113bc1ba8137201f22dc42d89", // disable settings, process patterns, no-session args
 	"detectorpacks 1": "sha256:67d93563fd3d144e907d1876fc7e8c315e9940df94fe109e11e2b1ff63425c85",
 	"detectorpacks 2": "sha256:0f489f0e56f3d87283af25a57dc4610f9c317237a3707b3055a20a518732b01c", // SCAN-13 exfiltration detectors
+	"detectorpacks 3": "sha256:11231588848668b267435ce73074732c68769cae18e46c22f701a5112517433b", // maintainers URL on GitHub
 }
 
 func TestBuiltInSetVersionsArePinned(t *testing.T) {

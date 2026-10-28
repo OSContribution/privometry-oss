@@ -18,7 +18,7 @@ import (
 	"strings"
 	"time"
 
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/contract"
+	"github.com/privometry/privometry-oss/internal/contract"
 )
 
 // Errors returned by Verify. Callers may match them with errors.Is.
@@ -151,4 +151,36 @@ func VerifyKeySetUpdate(raw []byte, current *KeySet, now time.Time) (*KeySet, er
 		return nil, fmt.Errorf("%w: %d after %d", ErrRollback, next.Version, current.Version)
 	}
 	return next, nil
+}
+
+// ParsePrivateKey reads a release-style key file: the base64 Ed25519 seed (32
+// bytes) or private key (64 bytes), surrounding space ignored.
+func ParsePrivateKey(raw []byte) (ed25519.PrivateKey, error) {
+	b, err := base64.StdEncoding.DecodeString(strings.TrimSpace(string(raw)))
+	if err != nil {
+		return nil, fmt.Errorf("signing: key file is not base64: %w", err)
+	}
+	switch len(b) {
+	case ed25519.SeedSize:
+		return ed25519.NewKeyFromSeed(b), nil
+	case ed25519.PrivateKeySize:
+		return ed25519.PrivateKey(b), nil
+	}
+	return nil, fmt.Errorf("signing: key file holds %d bytes; want a 32-byte seed or a 64-byte private key", len(b))
+}
+
+// KeySetDocument is a privometry.keyset/v1 document holding one key, as the
+// key sets built into the sensor (internal/trust/keys) are written.
+func KeySetDocument(role, name string, pub ed25519.PublicKey, notBefore time.Time) ([]byte, string, error) {
+	id := KeyID(role, name, pub)
+	doc := contract.KeySet{Schema: contract.KeySetSchema, Version: 1, IssuedAt: contract.At(notBefore),
+		Keys: []contract.KeySetKey{{KeyID: id, Role: contract.KeySetKeyRole(role), PublicKey: base64.StdEncoding.EncodeToString(pub), NotBefore: contract.At(notBefore)}}}
+	raw, err := json.MarshalIndent(doc, "", "  ")
+	if err != nil {
+		return nil, "", err
+	}
+	if _, err := ParseKeySet(raw); err != nil {
+		return nil, "", err
+	}
+	return append(raw, '\n'), id, nil
 }

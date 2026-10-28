@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Publishes docs/wiki/ to a GitHub or GitLab wiki, which is a separate git
+# Publishes docs/wiki/ to the GitHub wiki (or any other), which is a separate git
 # repository (<project>.wiki.git). Pages in the repo link to each other as
 # Page.md so the links work when browsing the source; the published copy
 # links by page name (Page), the form both wikis resolve.

@@ -13,10 +13,10 @@ import (
 	"testing"
 	"time"
 
-	cloudaccount "gitlab.com/cn-solutions/privometry/privometry-oss/internal/cloud/account"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/contract"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/signing"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/specs"
+	cloudaccount "github.com/privometry/privometry-oss/internal/cloud/account"
+	"github.com/privometry/privometry-oss/internal/contract"
+	"github.com/privometry/privometry-oss/internal/signing"
+	"github.com/privometry/privometry-oss/specs"
 )
 
 func TestSealedKey(t *testing.T) {

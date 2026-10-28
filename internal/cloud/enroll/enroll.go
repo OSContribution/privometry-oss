@@ -31,12 +31,12 @@ import (
 	"strings"
 	"time"
 
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/buildinfo"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/cloud"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/cloud/keyset"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/contract"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/keystore"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/platform"
+	"github.com/privometry/privometry-oss/internal/buildinfo"
+	"github.com/privometry/privometry-oss/internal/cloud"
+	"github.com/privometry/privometry-oss/internal/cloud/keyset"
+	"github.com/privometry/privometry-oss/internal/contract"
+	"github.com/privometry/privometry-oss/internal/keystore"
+	"github.com/privometry/privometry-oss/internal/platform"
 )
 
 // Keystore names.

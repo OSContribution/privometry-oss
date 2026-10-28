@@ -10,8 +10,8 @@ import (
 
 	"go.yaml.in/yaml/v3"
 
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/policy/compiler"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/specs"
+	"github.com/privometry/privometry-oss/internal/policy/compiler"
+	"github.com/privometry/privometry-oss/specs"
 )
 
 // Pack is a loaded rule pack: its manifest and every rule from rules/*.yaml.

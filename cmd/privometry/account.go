@@ -15,13 +15,13 @@ import (
 	"strings"
 	"time"
 
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/account"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/buildinfo"
-	cloudaccount "gitlab.com/cn-solutions/privometry/privometry-oss/internal/cloud/account"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/cloud/enroll"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/contract"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/keystore"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/platform"
+	"github.com/privometry/privometry-oss/internal/account"
+	"github.com/privometry/privometry-oss/internal/buildinfo"
+	cloudaccount "github.com/privometry/privometry-oss/internal/cloud/account"
+	"github.com/privometry/privometry-oss/internal/cloud/enroll"
+	"github.com/privometry/privometry-oss/internal/contract"
+	"github.com/privometry/privometry-oss/internal/keystore"
+	"github.com/privometry/privometry-oss/internal/platform"
 )
 
 // Swapped by tests.

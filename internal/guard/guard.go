@@ -12,8 +12,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/adapters/registry"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/platform"
+	"github.com/privometry/privometry-oss/internal/adapters/registry"
+	"github.com/privometry/privometry-oss/internal/platform"
 )
 
 // Options say where the hook lives and what is installed.

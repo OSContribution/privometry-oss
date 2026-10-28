@@ -13,20 +13,18 @@ package main
 
 import (
 	"crypto/ed25519"
-	"encoding/base64"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
-	adapterdefs "gitlab.com/cn-solutions/privometry/privometry-oss/adapter-defs"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/detectorpacks"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/definitions"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/signing"
+	adapterdefs "github.com/privometry/privometry-oss/adapter-defs"
+	"github.com/privometry/privometry-oss/detectorpacks"
+	"github.com/privometry/privometry-oss/internal/definitions"
+	"github.com/privometry/privometry-oss/internal/signing"
 )
 
 func main() {
@@ -92,18 +90,11 @@ func readKey(path string) ed25519.PrivateKey {
 	if err != nil {
 		log.Fatal(err)
 	}
-	b, err := base64.StdEncoding.DecodeString(strings.TrimSpace(string(raw)))
+	priv, err := signing.ParsePrivateKey(raw)
 	if err != nil {
-		log.Fatalf("%s: not base64: %v", path, err)
+		log.Fatalf("%s: %v", path, err)
 	}
-	switch len(b) {
-	case ed25519.SeedSize:
-		return ed25519.NewKeyFromSeed(b)
-	case ed25519.PrivateKeySize:
-		return ed25519.PrivateKey(b)
-	}
-	log.Fatalf("%s: %d bytes; want a 32-byte seed or a 64-byte private key", path, len(b))
-	return nil
+	return priv
 }
 
 func write(path string, data []byte) {

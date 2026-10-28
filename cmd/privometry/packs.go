@@ -14,12 +14,12 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/buildinfo"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/community"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/definitions"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/platform"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/policy"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/policy/rulepack"
+	"github.com/privometry/privometry-oss/internal/buildinfo"
+	"github.com/privometry/privometry-oss/internal/community"
+	"github.com/privometry/privometry-oss/internal/definitions"
+	"github.com/privometry/privometry-oss/internal/platform"
+	"github.com/privometry/privometry-oss/internal/policy"
+	"github.com/privometry/privometry-oss/internal/policy/rulepack"
 )
 
 const trustUsage = `Usage: privometry trust <add|list|remove> [flags]

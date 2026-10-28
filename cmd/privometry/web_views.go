@@ -8,15 +8,15 @@ import (
 	"strings"
 	"time"
 
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/buildinfo"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/guard"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/platform"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/policy"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/policy/merge"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/scanner"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/scanner/discover"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/timeline"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/webui"
+	"github.com/privometry/privometry-oss/internal/buildinfo"
+	"github.com/privometry/privometry-oss/internal/guard"
+	"github.com/privometry/privometry-oss/internal/platform"
+	"github.com/privometry/privometry-oss/internal/policy"
+	"github.com/privometry/privometry-oss/internal/policy/merge"
+	"github.com/privometry/privometry-oss/internal/scanner"
+	"github.com/privometry/privometry-oss/internal/scanner/discover"
+	"github.com/privometry/privometry-oss/internal/timeline"
+	"github.com/privometry/privometry-oss/internal/webui"
 )
 
 // The web timeline's computed sections. Each is read-only: it reports what

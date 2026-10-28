@@ -10,14 +10,14 @@ import (
 	"os"
 	"path/filepath"
 
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/buildinfo"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/contract"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/platform"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/policy"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/scanner"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/scanner/discover"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/scanner/posture"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/scanner/report"
+	"github.com/privometry/privometry-oss/internal/buildinfo"
+	"github.com/privometry/privometry-oss/internal/contract"
+	"github.com/privometry/privometry-oss/internal/platform"
+	"github.com/privometry/privometry-oss/internal/policy"
+	"github.com/privometry/privometry-oss/internal/scanner"
+	"github.com/privometry/privometry-oss/internal/scanner/discover"
+	"github.com/privometry/privometry-oss/internal/scanner/posture"
+	"github.com/privometry/privometry-oss/internal/scanner/report"
 )
 
 const usage = `Usage: privometry <command> [flags]

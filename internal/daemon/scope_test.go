@@ -3,7 +3,7 @@ package daemon
 import (
 	"testing"
 
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/events"
+	"github.com/privometry/privometry-oss/internal/events"
 )
 
 func TestCwdScope(t *testing.T) {

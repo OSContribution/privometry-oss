@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/signing"
+	"github.com/privometry/privometry-oss/internal/signing"
 )
 
 const vectorDir = "../../specs/conformance/signatures"

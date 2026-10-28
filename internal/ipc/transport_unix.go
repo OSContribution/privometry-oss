@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/platform"
+	"github.com/privometry/privometry-oss/internal/platform"
 )
 
 func dial(addr string, timeout time.Duration) (net.Conn, error) {

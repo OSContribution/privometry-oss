@@ -11,7 +11,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/contract"
+	"github.com/privometry/privometry-oss/internal/contract"
 )
 
 // TOML configs (Codex's config.toml) are edited line by line, so comments,

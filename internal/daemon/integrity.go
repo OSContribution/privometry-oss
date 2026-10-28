@@ -9,13 +9,13 @@ import (
 	"path/filepath"
 	"sort"
 
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/adapters/registry"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/contract"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/events"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/guard"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/redact"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/scanner/parsers"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/timeline"
+	"github.com/privometry/privometry-oss/internal/adapters/registry"
+	"github.com/privometry/privometry-oss/internal/contract"
+	"github.com/privometry/privometry-oss/internal/events"
+	"github.com/privometry/privometry-oss/internal/guard"
+	"github.com/privometry/privometry-oss/internal/redact"
+	"github.com/privometry/privometry-oss/internal/scanner/parsers"
+	"github.com/privometry/privometry-oss/internal/timeline"
 )
 
 // watched is one config file the daemon keeps an eye on.

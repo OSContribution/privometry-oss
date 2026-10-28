@@ -10,8 +10,8 @@ import (
 	"slices"
 	"strings"
 
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/adapters/registry"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/contract"
+	"github.com/privometry/privometry-oss/internal/adapters/registry"
+	"github.com/privometry/privometry-oss/internal/contract"
 )
 
 // Local stdio MCP servers in an agent's user-tier config can be wrapped so

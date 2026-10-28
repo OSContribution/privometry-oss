@@ -3,7 +3,7 @@
 package community
 
 import (
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/contract"
+	"github.com/privometry/privometry-oss/internal/contract"
 )
 
 // Schema identifiers for the documents in this file.

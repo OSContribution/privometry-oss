@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/platform"
+	"github.com/privometry/privometry-oss/internal/platform"
 )
 
 func TestDPAPIStore(t *testing.T) {

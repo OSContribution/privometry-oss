@@ -8,7 +8,7 @@ import (
 
 	"golang.org/x/sys/windows"
 
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/platform"
+	"github.com/privometry/privometry-oss/internal/platform"
 )
 
 // dpapi keeps each secret in a file sealed with CryptProtectData, so only the

@@ -15,7 +15,7 @@ import (
 
 	"golang.org/x/sys/windows"
 
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/platform"
+	"github.com/privometry/privometry-oss/internal/platform"
 )
 
 // On Windows the daemon listens on a named pipe whose access list admits only

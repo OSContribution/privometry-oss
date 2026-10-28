@@ -13,12 +13,12 @@ import (
 	"strings"
 	"time"
 
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/adapters/registry"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/buildinfo"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/content"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/daemon/service"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/definitions"
-	"gitlab.com/cn-solutions/privometry/privometry-oss/internal/platform"
+	"github.com/privometry/privometry-oss/internal/adapters/registry"
+	"github.com/privometry/privometry-oss/internal/buildinfo"
+	"github.com/privometry/privometry-oss/internal/content"
+	"github.com/privometry/privometry-oss/internal/daemon/service"
+	"github.com/privometry/privometry-oss/internal/definitions"
+	"github.com/privometry/privometry-oss/internal/platform"
 )
 
 const definitionsUsage = `Usage: privometry definitions <status|update|install> [flags]
